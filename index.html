@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPTUP EduGame - Game Edukasi Teknik Refrigrasi & Tata Udara</title>
+  <meta name="description" content="Aplikasi game edukasi interaktif untuk mata pelajaran SMK TPTUP (Teknik Pemanasan, Tata Udara, dan Pendinginan) berbasis Web dan AI Gemini 3.5 Flash.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CDN Libraries for File Parsing (PDF, DOCX, XLSX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- CSS Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app" class="app-container">
+
+    <!-- Top Navigation / Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-icon">❄️</div>
+        <div class="brand-text">
+          <h1 class="brand-title">TPTUP EduGame</h1>
+          <span class="brand-subtitle">Teknik Pendingin & Tata Udara</span>
+        </div>
+      </div>
+
+      <!-- Stats Bar (Score, Combo, Audio, Admin Gear) -->
+      <div class="header-actions">
+        <div class="stat-pill score-pill" title="Skor Saat Ini">
+          <span class="stat-icon">⭐</span>
+          <span id="header-score" class="stat-value">0</span>
+        </div>
+
+        <div class="stat-pill combo-pill" id="combo-container" style="display: none;">
+          <span class="stat-icon">🔥</span>
+          <span id="header-combo" class="stat-value">x1</span>
+        </div>
+
+        <button id="btn-sound-toggle" class="icon-btn" aria-label="Toggle Efek Suara" title="Efek Suara">
+          <span id="sound-icon">🔊</span>
+        </button>
+
+        <!-- Leaderboard Icon -->
+        <button id="btn-leaderboard" class="icon-btn" aria-label="Papan Peringkat" title="Papan Peringkat (Leaderboard)">
+          <span class="leaderboard-icon">🏆</span>
+        </button>
+
+        <!-- Admin Settings Gear Icon -->
+        <button id="btn-admin-gear" class="icon-btn gear-btn" aria-label="Pengaturan Admin" title="Pengaturan Guru / Admin">
+          <span class="gear-icon">⚙️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- ================= QUIZ VIEW ================= -->
+      <section id="quiz-view" class="view-section active">
+        
+        <!-- Progress Bar & Question Counter -->
+        <div class="quiz-progress-card">
+          <div class="progress-info">
+            <span id="question-badge" class="badge badge-primary">Soal 1 dari 5</span>
+            <span id="q-type-badge" class="badge badge-type">Pilihan Ganda</span>
+            <span id="topic-badge" class="badge badge-topic">⚙️ Sistem Refrigerasi</span>
+          </div>
+          <div class="progress-bar-track">
+            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 20%;"></div>
+          </div>
+        </div>
+
+        <!-- Main Question Card -->
+        <div class="quiz-card" id="quiz-card">
+          <div class="question-header">
+            <h2 id="question-text" class="question-text">
+              Memuat soal kuis TPTUP...
+            </h2>
+          </div>
+
+          <!-- Options Grid for Pilihan Ganda -->
+          <div id="options-grid" class="options-grid">
+            <!-- Option Buttons rendered dynamically -->
+          </div>
+
+          <!-- Essay Container for Essay Questions -->
+          <div id="essay-container" class="essay-container hidden">
+            <label for="essay-input" class="essay-label">Tuliskan Jawaban Kamu:</label>
+            <textarea id="essay-input" class="form-textarea" rows="4" placeholder="Ketik jawaban lengkap di sini..."></textarea>
+            <button id="btn-submit-essay" class="btn btn-primary btn-full margin-top-sm">
+              <span>🚀 Kirim Jawaban Essay</span>
+            </button>
+          </div>
+
+          <!-- Answer Explanation / Essay Reference Card -->
+          <div id="explanation-box" class="explanation-box hidden">
+            <div class="explanation-header">
+              <span id="explanation-icon">💡</span>
+              <strong id="explanation-title">Penjelasan / Kunci Jawaban:</strong>
+            </div>
+            <p id="explanation-text" class="explanation-text"></p>
+          </div>
+
+          <!-- Quiz Action Footer -->
+          <div class="quiz-footer">
+            <button id="btn-next-question" class="btn btn-action btn-next hidden">
+              <span>Soal Selanjutnya</span>
+              <span class="btn-arrow">➔</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= RESULT / VICTORY VIEW ================= -->
+      <section id="result-view" class="view-section hidden">
+        <canvas id="confetti-canvas"></canvas>
+        <div class="result-card">
+          <div class="result-badge-icon" id="result-icon">🏆</div>
+          <h2 class="result-title" id="result-title">Luar Biasa!</h2>
+          <p class="result-subtitle" id="result-subtitle">Kamu telah menyelesaikan Kuis TPTUP</p>
+
+          <!-- Score Summary Grid -->
+          <div class="stats-summary-grid">
+            <div class="stat-card">
+              <span class="stat-card-label">Skor Akhir</span>
+              <span class="stat-card-value text-primary" id="final-score">100</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Akurasi</span>
+              <span class="stat-card-value text-success" id="final-accuracy">80%</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Selesai / Total</span>
+              <span class="stat-card-value text-warning" id="final-count">4 / 5</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Predikat</span>
+              <span class="stat-card-value text-purple" id="final-rank">Teknisi Terampil</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Waktu Selesai</span>
+              <span class="stat-card-value text-primary" id="final-time">00:00</span>
+            </div>
+          </div>
+
+          <!-- Save to Leaderboard -->
+          <div class="leaderboard-save-box">
+            <label for="input-player-name" class="leaderboard-save-label">🏆 Simpan skor kamu ke Leaderboard:</label>
+            <div class="input-group">
+              <input type="text" id="input-player-name" class="form-input" placeholder="Tulis nama kamu..." maxlength="30">
+              <button id="btn-save-leaderboard" class="btn btn-success">💾 Simpan</button>
+            </div>
+            <p id="leaderboard-save-status" class="status-msg hidden"></p>
+          </div>
+
+          <!-- Result Actions -->
+          <div class="result-actions">
+            <button id="btn-restart-quiz" class="btn btn-primary btn-lg">
+              <span>🔄 Main Lagi</span>
+            </button>
+            <button id="btn-review-answers" class="btn btn-secondary btn-lg">
+              <span>📋 Review Jawaban</span>
+            </button>
+            <button id="btn-view-leaderboard-from-result" class="btn btn-outline-dark btn-lg">
+              <span>🏆 Lihat Leaderboard</span>
+            </button>
+          </div>
+
+          <!-- Answer Review Panel (Hidden initially) -->
+          <div id="review-panel" class="review-panel hidden">
+            <h3 class="review-title">Detail Jawaban Kamu</h3>
+            <div id="review-list" class="review-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= LEADERBOARD VIEW ================= -->
+      <section id="leaderboard-view" class="view-section hidden">
+        <div class="admin-header-card">
+          <div class="admin-title-group">
+            <h2>🏆 Papan Peringkat TPTUP</h2>
+            <p>Skor tertinggi & waktu tercepat penyelesaian kuis.</p>
+          </div>
+          <button id="btn-back-from-leaderboard" class="btn btn-outline-dark">
+            ⬅️ Kembali
+          </button>
+        </div>
+
+        <div class="admin-card full-width">
+          <div class="card-header space-between">
+            <div class="header-title-flex">
+              <span class="card-icon">📊</span>
+              <h3>Ranking Pemain</h3>
+            </div>
+            <button id="btn-clear-leaderboard" class="btn btn-outline-dark">
+              🗑️ Kosongkan Leaderboard
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="leaderboard-list" class="leaderboard-list">
+              <!-- Leaderboard rows rendered here -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ADMIN VIEW ================= -->
+      <section id="admin-view" class="view-section hidden">
+        <div class="admin-header-card">
+          <div class="admin-title-group">
+            <h2>⚙️ Panel Admin & Guru TPTUP</h2>
+            <p>Kelola API Key, buat soal AI dari Dokumen, atau atur mode kuis.</p>
+          </div>
+          <button id="btn-back-to-game" class="btn btn-outline-dark">
+            <span>⬅️ Kembali ke Game</span>
+          </button>
+        </div>
+
+        <div class="admin-grid">
+
+          <!-- Card 1: Gemini API Key Setup -->
+          <div class="admin-card">
+            <div class="card-header">
+              <span class="card-icon">🔑</span>
+              <h3>Pengaturan Google Gemini API Key</h3>
+            </div>
+            <div class="card-body">
+              <p class="input-help">
+                Masukkan Gemini API Key dari Google AI Studio. Disimpan secara aman di <code>localStorage</code> browser.
+              </p>
+              <div class="input-group">
+                <input type="password" id="input-api-key" placeholder="AIzaSy..." class="form-input">
+                <button id="btn-toggle-key-visibility" class="btn btn-icon-only" title="Tampilkan/Sembunyikan Key">👁️</button>
+              </div>
+              <button id="btn-save-api-key" class="btn btn-success btn-full margin-top-sm">
+                💾 Simpan API Key
+              </button>
+              <span id="api-key-status" class="status-msg hidden"></span>
+            </div>
+          </div>
+
+          <!-- Card 2: AI Generator Lanjutan (Multimodal & User-Controlled) -->
+          <div class="admin-card">
+            <div class="card-header">
+              <span class="card-icon">✨</span>
+              <h3>Auto-Generate Soal AI (Gemini 3.5 Flash)</h3>
+            </div>
+            <div class="card-body">
+              
+              <!-- Config Row 1: Jumlah & Jenis Soal -->
+              <div class="admin-config-row">
+                <div class="form-group flex-1" id="q-count-single-wrap">
+                  <label for="input-q-count">Jumlah Soal:</label>
+                  <input type="number" id="input-q-count" class="form-input" min="1" max="20" value="5">
+                </div>
+                <div class="form-group flex-1 hidden" id="q-count-mixed-wrap">
+                  <label>Jumlah Soal (Campuran):</label>
+                  <div class="mixed-count-row">
+                    <div class="mixed-count-item">
+                      <span class="mixed-count-label">📌 Pilgan</span>
+                      <input type="number" id="input-q-count-pilgan" class="form-input" min="0" max="20" value="5">
+                    </div>
+                    <div class="mixed-count-item">
+                      <span class="mixed-count-label">📝 Essay</span>
+                      <input type="number" id="input-q-count-essay" class="form-input" min="0" max="20" value="5">
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group flex-1">
+                  <label>Jenis Soal:</label>
+                  <div class="radio-toggle-group">
+                    <label class="radio-label">
+                      <input type="radio" name="ai-q-type" value="pilgan" checked>
+                      <span>Pilgan (A-D)</span>
+                    </label>
+                    <label class="radio-label">
+                      <input type="radio" name="ai-q-type" value="essay">
+                      <span>Essay (Isian)</span>
+                    </label>
+                    <label class="radio-label">
+                      <input type="radio" name="ai-q-type" value="campuran">
+                      <span>🔀 Campuran</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Config Row 2: File Upload (Multimodal) -->
+              <div class="form-group">
+                <label>Unggah Dokumen Materi (PDF, DOCX, XLSX, TXT):</label>
+                <div class="file-upload-box">
+                  <input type="file" id="input-file-material" accept=".pdf,.docx,.xlsx,.txt,.csv" class="file-input-hidden">
+                  <button type="button" id="btn-trigger-file-upload" class="btn btn-secondary btn-full">
+                    <span>📁 Pilih File Materi (.pdf, .docx, .xlsx, .txt)</span>
+                  </button>
+                </div>
+                <!-- File Info Badge -->
+                <div id="file-info-badge" class="file-info-badge hidden">
+                  <span class="file-icon">📄</span>
+                  <span id="file-name-text" class="file-name-text">dokumen.pdf</span>
+                  <span id="file-size-text" class="file-size-text">(120 KB)</span>
+                  <button id="btn-remove-file" class="btn-remove-file" title="Hapus File">&times;</button>
+                </div>
+              </div>
+
+              <!-- Config Row 3: Manual Text Input -->
+              <div class="form-group">
+                <label for="input-material-text">Atau Tempel Teks Materi:</label>
+                <textarea id="input-material-text" class="form-textarea" rows="4" placeholder="Ketik/tempel materi tambahan di sini..."></textarea>
+              </div>
+
+              <div class="generate-actions">
+                <button id="btn-generate-ai" class="btn btn-gradient btn-full btn-lg">
+                  <span id="generate-btn-text">✨ Generate Soal AI (Gemini 3.5 Flash)</span>
+                  <span id="generate-btn-spinner" class="spinner hidden"></span>
+                </button>
+              </div>
+              <p id="ai-status-msg" class="status-msg hidden"></p>
+            </div>
+          </div>
+
+          <!-- Card 3: Default Questions & Bank Soal -->
+          <div class="admin-card full-width">
+            <div class="card-header space-between">
+              <div class="header-title-flex">
+                <span class="card-icon">📚</span>
+                <h3>Bank Soal Aktif TPTUP (<span id="active-questions-count">0</span> Soal)</h3>
+              </div>
+              <div class="header-buttons">
+                <input type="file" id="input-import-questions" accept=".json" class="file-input-hidden">
+                <button id="btn-import-questions" class="btn btn-outline-dark">
+                  ⬆️ Import JSON
+                </button>
+                <button id="btn-export-questions" class="btn btn-outline-dark">
+                  ⬇️ Export JSON
+                </button>
+                <button id="btn-add-manual-q" class="btn btn-secondary">
+                  ➕ Tambah Soal Manual
+                </button>
+              </div>
+            </div>
+            <p class="input-help" style="padding: 0 20px 12px;">💡 Setelah bank soal siap, klik <strong>Export JSON</strong> lalu simpan hasilnya sebagai file <code>questions.json</code> di folder project ini (sejajar dengan index.html) sebelum di-hosting — dengan begitu semua siswa langsung melihat soal yang sama tanpa perlu login admin.</p>
+            <div class="card-body">
+              <div id="admin-questions-list" class="questions-list">
+                <!-- Question items rendered here -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 SMK TPTUP EduGame - Media Pembelajaran Interaktif Refrigrasi & Tata Udara</p>
+    </footer>
+
+  </div>
+
+  <!-- Custom Password Modal for Admin -->
+  <div id="modal-password" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-icon">🔒</div>
+      <h3 class="modal-title">Akses Panel Guru & Admin</h3>
+      <p class="modal-desc">Masukkan password rahasia untuk mengelola soal dan API Key.</p>
+      
+      <form id="form-password" onsubmit="return false;">
+        <div class="form-group">
+          <input type="password" id="input-admin-pass" class="form-input" placeholder="Masukkan password..." autocomplete="current-password">
+        </div>
+        <p id="pass-error-msg" class="error-msg hidden">Password salah!</p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-pass" class="btn btn-secondary">Batal</button>
+          <button type="submit" id="btn-submit-pass" class="btn btn-primary">Masuk Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Custom Manual Question Form Modal -->
+  <div id="modal-add-question" class="modal-backdrop hidden">
+    <div class="modal-card modal-lg">
+      <div class="modal-header space-between">
+        <h3>➕ Tambah Soal Manual</h3>
+        <button id="btn-close-q-modal" class="btn-close">&times;</button>
+      </div>
+      <form id="form-manual-question">
+        <div class="form-group">
+          <label for="q-manual-type">Jenis Soal:</label>
+          <select id="q-manual-type" class="form-input">
+            <option value="pilgan">Pilihan Ganda (Pilgan)</option>
+            <option value="essay">Essay / Isian</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="q-topic">Topik / Kategori:</label>
+          <input type="text" id="q-topic" class="form-input" placeholder="Contoh: Kompresor & Tekanan" required>
+        </div>
+        <div class="form-group">
+          <label for="q-text">Pertanyaan:</label>
+          <textarea id="q-text" class="form-textarea" rows="3" placeholder="Tuliskan soal pertanyaan di sini..." required></textarea>
+        </div>
+        
+        <!-- Options for Pilgan -->
+        <div id="manual-pilgan-group" class="form-group">
+          <label>Pilihan Jawaban (Tandai Radio untuk Jawaban Benar):</label>
+          <div class="manual-option-row">
+            <input type="radio" name="correct-opt" value="0" checked>
+            <input type="text" id="opt-0" class="form-input" placeholder="Opsi A (Jawaban Benar)">
+          </div>
+          <div class="manual-option-row">
+            <input type="radio" name="correct-opt" value="1">
+            <input type="text" id="opt-1" class="form-input" placeholder="Opsi B">
+          </div>
+          <div class="manual-option-row">
+            <input type="radio" name="correct-opt" value="2">
+            <input type="text" id="opt-2" class="form-input" placeholder="Opsi C">
+          </div>
+          <div class="manual-option-row">
+            <input type="radio" name="correct-opt" value="3">
+            <input type="text" id="opt-3" class="form-input" placeholder="Opsi D">
+          </div>
+        </div>
+
+        <!-- Answer Key for Essay -->
+        <div id="manual-essay-group" class="form-group hidden">
+          <label for="q-essay-answer">Kunci Jawaban Referensi Essay:</label>
+          <textarea id="q-essay-answer" class="form-textarea" rows="3" placeholder="Tuliskan kunci jawaban yang diharapkan..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="q-explanation">Penjelasan Singkat:</label>
+          <input type="text" id="q-explanation" class="form-input" placeholder="Mengapa jawaban ini benar..." required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-add-q" class="btn btn-secondary">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Soal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
