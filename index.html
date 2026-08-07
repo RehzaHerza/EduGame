@@ -390,6 +390,19 @@
     </div>
   </div>
 
+  <!-- Generic Alert / Confirm Modal (pengganti alert()/confirm() bawaan browser) -->
+  <div id="modal-generic-notice" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-icon" id="generic-notice-icon">ℹ️</div>
+      <h3 class="modal-title" id="generic-notice-title">Pemberitahuan</h3>
+      <p class="modal-desc" id="generic-notice-message" style="white-space: pre-line;"></p>
+      <div class="modal-actions">
+        <button type="button" id="btn-generic-notice-cancel" class="btn btn-secondary hidden">Batal</button>
+        <button type="button" id="btn-generic-notice-ok" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Custom Manual Question Form Modal -->
   <div id="modal-add-question" class="modal-backdrop hidden">
     <div class="modal-card modal-lg">

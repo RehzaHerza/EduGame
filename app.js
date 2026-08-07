@@ -258,6 +258,13 @@
     passErrorMsg: document.getElementById('pass-error-msg'),
     btnCancelPass: document.getElementById('btn-cancel-pass'),
 
+    modalGenericNotice: document.getElementById('modal-generic-notice'),
+    genericNoticeIcon: document.getElementById('generic-notice-icon'),
+    genericNoticeTitle: document.getElementById('generic-notice-title'),
+    genericNoticeMessage: document.getElementById('generic-notice-message'),
+    btnGenericNoticeOk: document.getElementById('btn-generic-notice-ok'),
+    btnGenericNoticeCancel: document.getElementById('btn-generic-notice-cancel'),
+
     modalAddQuestion: document.getElementById('modal-add-question'),
     formManualQuestion: document.getElementById('form-manual-question'),
     qManualType: document.getElementById('q-manual-type'),
@@ -336,6 +343,60 @@
   }
 
   // ==========================================
+  // 5B. CUSTOM NOTICE / CONFIRM MODAL (pengganti alert() & confirm())
+  // ==========================================
+  let noticeResolver = null;
+  let noticeBackdropValue = false;
+
+  function closeGenericNotice(result) {
+    DOM.modalGenericNotice.classList.add('hidden');
+    if (noticeResolver) {
+      const resolve = noticeResolver;
+      noticeResolver = null;
+      resolve(result);
+    }
+  }
+
+  function showNotice(message, options = {}) {
+    const { title = 'Pemberitahuan', icon = 'ℹ️', type = 'info' } = options;
+    sound.playPop();
+
+    DOM.genericNoticeIcon.textContent = icon;
+    DOM.genericNoticeTitle.textContent = title;
+    DOM.genericNoticeMessage.textContent = message;
+    DOM.btnGenericNoticeCancel.classList.add('hidden');
+    DOM.btnGenericNoticeOk.textContent = 'OK';
+    DOM.btnGenericNoticeOk.className = `btn ${type === 'error' ? 'btn-primary' : 'btn-primary'}`;
+    noticeBackdropValue = true;
+
+    DOM.modalGenericNotice.classList.remove('hidden');
+    if (type === 'error') sound.playWrong();
+
+    return new Promise((resolve) => {
+      noticeResolver = resolve;
+    });
+  }
+
+  function showConfirm(message, options = {}) {
+    const { title = 'Konfirmasi', icon = '❓', okLabel = 'OK', cancelLabel = 'Batal', backdropResolvesTo = false } = options;
+    sound.playPop();
+
+    DOM.genericNoticeIcon.textContent = icon;
+    DOM.genericNoticeTitle.textContent = title;
+    DOM.genericNoticeMessage.textContent = message;
+    DOM.btnGenericNoticeCancel.classList.remove('hidden');
+    DOM.btnGenericNoticeOk.textContent = okLabel;
+    DOM.btnGenericNoticeCancel.textContent = cancelLabel;
+    noticeBackdropValue = backdropResolvesTo;
+
+    DOM.modalGenericNotice.classList.remove('hidden');
+
+    return new Promise((resolve) => {
+      noticeResolver = resolve;
+    });
+  }
+
+  // ==========================================
   // 6. NAVIGATION & SECURITY MODULE
   // ==========================================
   function showView(viewElement) {
@@ -360,7 +421,7 @@
     if (e) e.preventDefault();
     const pass = DOM.inputAdminPass.value.trim();
 
-    if (pass === 'edugame') {
+    if (pass === 'TPTUP10') {
       state.isAdminAuthenticated = true;
       DOM.modalPassword.classList.add('hidden');
       renderAdminView();
@@ -368,8 +429,8 @@
     } else {
       sound.playWrong();
       DOM.passErrorMsg.classList.remove('hidden');
-      alert('Akses Ditolak! Password tidak sesuai.');
       DOM.modalPassword.classList.add('hidden');
+      showNotice('Password tidak sesuai. Silakan coba lagi.', { title: 'Akses Ditolak', icon: '🔒', type: 'error' });
     }
   }
 
@@ -604,8 +665,8 @@
     const userText = DOM.essayInput.value.trim();
 
     if (!userText) {
-      alert('Silakan tuliskan jawaban essay Kamu terlebih dahulu!');
-      DOM.essayInput.focus();
+      showNotice('Silakan tuliskan jawaban essay Kamu terlebih dahulu!', { title: 'Jawaban Kosong', icon: '✍️', type: 'error' })
+        .then(() => DOM.essayInput.focus());
       return;
     }
 
@@ -912,8 +973,14 @@
     return div.innerHTML;
   }
 
-  function handleClearLeaderboard() {
-    if (confirm('Yakin ingin mengosongkan seluruh data Leaderboard? Tindakan ini tidak bisa dibatalkan.')) {
+  async function handleClearLeaderboard() {
+    const confirmed = await showConfirm('Yakin ingin mengosongkan seluruh data Leaderboard? Tindakan ini tidak bisa dibatalkan.', {
+      title: 'Kosongkan Leaderboard?',
+      icon: '🗑️',
+      okLabel: 'Ya, Kosongkan',
+      cancelLabel: 'Batal'
+    });
+    if (confirmed) {
       saveLeaderboardEntries([]);
       renderLeaderboard();
       sound.playPop();
@@ -1227,7 +1294,7 @@ ${formatInstructions}
 
   function exportQuestionsToJson() {
     if (state.questions.length === 0) {
-      alert('Bank soal masih kosong, belum ada yang bisa di-export.');
+      showNotice('Bank soal masih kosong, belum ada yang bisa di-export.', { title: 'Bank Soal Kosong', icon: '📭', type: 'error' });
       return;
     }
     sound.playPop();
@@ -1247,23 +1314,28 @@ ${formatInstructions}
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target.result);
         const sanitized = sanitizeQuestionList(parsed);
         if (!sanitized || sanitized.length === 0) throw new Error('Format JSON tidak valid.');
 
-        const appendMode = state.questions.length > 0 &&
-          confirm(`Bank soal saat ini sudah berisi ${state.questions.length} soal.\n\nKlik OK untuk MENAMBAHKAN ${sanitized.length} soal dari file ini,\natau Cancel untuk MENGGANTI seluruh bank soal dengan isi file ini.`);
+        let appendMode = false;
+        if (state.questions.length > 0) {
+          appendMode = await showConfirm(
+            `Bank soal saat ini sudah berisi ${state.questions.length} soal.\n\nPilih "Tambahkan" untuk MENAMBAHKAN ${sanitized.length} soal dari file ini, atau "Ganti Semua" untuk MENGGANTI seluruh bank soal dengan isi file ini.`,
+            { title: 'Mode Import', icon: '📥', okLabel: 'Tambahkan', cancelLabel: 'Ganti Semua', backdropResolvesTo: true }
+          );
+        }
 
         state.questions = appendMode ? [...state.questions, ...sanitized] : sanitized;
 
         renderAdminQuestionsList();
         sound.playCorrect();
-        alert(`${sanitized.length} soal berhasil diimpor dari ${file.name}.`);
+        showNotice(`${sanitized.length} soal berhasil diimpor dari ${file.name}.`, { title: 'Import Berhasil', icon: '✅' });
       } catch (err) {
         sound.playWrong();
-        alert(`Gagal membaca file JSON: ${err.message}`);
+        showNotice(`Gagal membaca file JSON: ${err.message}`, { title: 'Import Gagal', icon: '⚠️', type: 'error' });
       } finally {
         DOM.inputImportQuestions.value = '';
       }
@@ -1305,6 +1377,19 @@ ${formatInstructions}
     DOM.btnClearLeaderboard.addEventListener('click', handleClearLeaderboard);
     DOM.btnViewLeaderboardFromResult.addEventListener('click', openLeaderboardView);
     DOM.btnSaveLeaderboard.addEventListener('click', handleSaveLeaderboard);
+
+    // Generic Notice / Confirm Modal
+    DOM.btnGenericNoticeOk.addEventListener('click', () => {
+      sound.playPop();
+      closeGenericNotice(true);
+    });
+    DOM.btnGenericNoticeCancel.addEventListener('click', () => {
+      sound.playPop();
+      closeGenericNotice(false);
+    });
+    DOM.modalGenericNotice.addEventListener('click', (e) => {
+      if (e.target === DOM.modalGenericNotice) closeGenericNotice(noticeBackdropValue);
+    });
 
     // Password Modal
     DOM.formPassword.addEventListener('submit', handleAdminPassSubmit);
