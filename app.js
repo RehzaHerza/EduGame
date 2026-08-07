@@ -422,6 +422,7 @@
     const pass = DOM.inputAdminPass.value.trim();
 
     if (pass === 'TPTUP10') {
+      DOM.passErrorMsg.classList.add('hidden');
       state.isAdminAuthenticated = true;
       DOM.modalPassword.classList.add('hidden');
       renderAdminView();
@@ -429,8 +430,8 @@
     } else {
       sound.playWrong();
       DOM.passErrorMsg.classList.remove('hidden');
-      DOM.modalPassword.classList.add('hidden');
-      showNotice('Password tidak sesuai. Silakan coba lagi.', { title: 'Akses Ditolak', icon: '🔒', type: 'error' });
+      DOM.inputAdminPass.value = '';
+      DOM.inputAdminPass.focus();
     }
   }
 
