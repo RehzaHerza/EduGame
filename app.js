@@ -145,8 +145,11 @@
   // ==========================================
   // 3. APPLICATION STATE
   // ==========================================
+  const APP_DATA_STORAGE_KEY = 'tptup_app_data_v2';
+
   const state = {
-    questions: [],
+    subjects: [{ id: 'default', name: 'Mapel Baru', icon: '📘', questions: [] }],
+    activeSubjectIndex: 0,
     currentQuestionIndex: 0,
     score: 0,
     combo: 0,
@@ -160,6 +163,52 @@
     lastElapsedMs: 0,
     lastMainView: 'quiz'
   };
+
+  // "state.questions" tetap berfungsi seperti sebelumnya (kode lama tidak perlu diubah),
+  // tapi sekarang jadi proxy ke bank soal milik mapel yang sedang aktif, dan otomatis
+  // tersimpan ke localStorage setiap kali di-set (memperbaiki bug "soal hilang saat reload").
+  Object.defineProperty(state, 'questions', {
+    get() {
+      const subj = state.subjects[state.activeSubjectIndex];
+      return subj ? subj.questions : [];
+    },
+    set(val) {
+      const subj = state.subjects[state.activeSubjectIndex];
+      if (subj) {
+        subj.questions = val;
+        persistAppData();
+      }
+    }
+  });
+
+  function getActiveSubject() {
+    return state.subjects[state.activeSubjectIndex] || state.subjects[0];
+  }
+
+  function persistAppData() {
+    try {
+      localStorage.setItem(APP_DATA_STORAGE_KEY, JSON.stringify({
+        subjects: state.subjects,
+        activeSubjectIndex: state.activeSubjectIndex
+      }));
+    } catch (err) {
+      // localStorage penuh/tidak tersedia — abaikan, data tetap ada di memori untuk sesi ini
+    }
+  }
+
+  function loadAppDataFromStorage() {
+    try {
+      const raw = localStorage.getItem(APP_DATA_STORAGE_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.subjects) || parsed.subjects.length === 0) return false;
+      state.subjects = parsed.subjects;
+      state.activeSubjectIndex = Math.min(parsed.activeSubjectIndex || 0, state.subjects.length - 1);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
 
   // ==========================================
   // 4. DOM ELEMENTS REFERENCE
@@ -179,6 +228,13 @@
     soundIcon: document.getElementById('sound-icon'),
     btnAdminGear: document.getElementById('btn-admin-gear'),
     btnLeaderboard: document.getElementById('btn-leaderboard'),
+    brandSubtitle: document.getElementById('brand-subtitle'),
+    subjectPickerSelect: document.getElementById('subject-picker-select'),
+    adminSubjectSelect: document.getElementById('admin-subject-select'),
+    inputNewSubjectName: document.getElementById('input-new-subject-name'),
+    btnAddSubject: document.getElementById('btn-add-subject'),
+    btnRenameSubject: document.getElementById('btn-rename-subject'),
+    btnDeleteSubject: document.getElementById('btn-delete-subject'),
 
     // Quiz Elements
     questionBadge: document.getElementById('question-badge'),
@@ -211,6 +267,8 @@
 
     // Leaderboard Elements
     leaderboardList: document.getElementById('leaderboard-list'),
+    leaderboardTitle: document.getElementById('leaderboard-title'),
+    leaderboardSubtitle: document.getElementById('leaderboard-subtitle'),
     btnBackFromLeaderboard: document.getElementById('btn-back-from-leaderboard'),
     btnClearLeaderboard: document.getElementById('btn-clear-leaderboard'),
     btnReviewAnswers: document.getElementById('btn-review-answers'),
@@ -245,9 +303,11 @@
     inputQCountEssay: document.getElementById('input-q-count-essay'),
     btnAddManualQ: document.getElementById('btn-add-manual-q'),
     btnExportQuestions: document.getElementById('btn-export-questions'),
+    btnExportAllSubjects: document.getElementById('btn-export-all-subjects'),
     btnImportQuestions: document.getElementById('btn-import-questions'),
     inputImportQuestions: document.getElementById('input-import-questions'),
     activeQuestionsCount: document.getElementById('active-questions-count'),
+    activeSubjectNameLabel: document.getElementById('active-subject-name'),
     adminQuestionsList: document.getElementById('admin-questions-list'),
 
 
@@ -394,6 +454,100 @@
     return new Promise((resolve) => {
       noticeResolver = resolve;
     });
+  }
+
+  // ==========================================
+  // 5C. SUBJECT (MATA PELAJARAN) MANAGEMENT
+  // ==========================================
+  function renderSubjectSelectors() {
+    const optionsHtml = state.subjects
+      .map((s, idx) => `<option value="${idx}">${s.icon || '📘'} ${escapeHtml(s.name)} (${s.questions.length} soal)</option>`)
+      .join('');
+
+    DOM.subjectPickerSelect.innerHTML = optionsHtml;
+    DOM.subjectPickerSelect.value = String(state.activeSubjectIndex);
+
+    DOM.adminSubjectSelect.innerHTML = optionsHtml;
+    DOM.adminSubjectSelect.value = String(state.activeSubjectIndex);
+
+    const activeSubject = getActiveSubject();
+    DOM.brandSubtitle.textContent = activeSubject ? activeSubject.name : 'Mapel Baru';
+  }
+
+  function switchSubject(newIndex) {
+    const idx = parseInt(newIndex, 10);
+    if (Number.isNaN(idx) || idx === state.activeSubjectIndex || !state.subjects[idx]) return;
+
+    state.activeSubjectIndex = idx;
+    persistAppData();
+    renderSubjectSelectors();
+
+    if (state.isAdminAuthenticated) {
+      renderAdminQuestionsList();
+    }
+    startQuiz();
+  }
+
+  async function handleAddSubject() {
+    const name = DOM.inputNewSubjectName.value.trim();
+    if (!name) {
+      showNotice('Tulis nama mapel terlebih dahulu!', { title: 'Nama Kosong', icon: '📚', type: 'error' });
+      return;
+    }
+
+    const newSubject = {
+      id: `subj_${Date.now()}`,
+      name: name,
+      icon: '📘',
+      questions: []
+    };
+    state.subjects.push(newSubject);
+    state.activeSubjectIndex = state.subjects.length - 1;
+    persistAppData();
+
+    DOM.inputNewSubjectName.value = '';
+    renderSubjectSelectors();
+    renderAdminQuestionsList();
+    sound.playCorrect();
+    showNotice(`Mapel "${name}" berhasil dibuat & langsung aktif.`, { title: 'Mapel Ditambahkan', icon: '✅' });
+  }
+
+  async function handleRenameSubject() {
+    const newName = DOM.inputNewSubjectName.value.trim();
+    if (!newName) {
+      showNotice('Ketik nama baru di kolom di atas, lalu klik "Ganti Nama Mapel Aktif" lagi.', { title: 'Nama Kosong', icon: '✏️', type: 'error' });
+      DOM.inputNewSubjectName.focus();
+      return;
+    }
+
+    const subject = getActiveSubject();
+    subject.name = newName;
+    persistAppData();
+    DOM.inputNewSubjectName.value = '';
+    renderSubjectSelectors();
+    sound.playCorrect();
+  }
+
+  async function handleDeleteSubject() {
+    if (state.subjects.length <= 1) {
+      showNotice('Tidak bisa menghapus mapel terakhir. Minimal harus ada 1 mapel.', { title: 'Tidak Bisa Dihapus', icon: '🚫', type: 'error' });
+      return;
+    }
+
+    const subject = getActiveSubject();
+    const confirmed = await showConfirm(
+      `Yakin ingin menghapus mapel "${subject.name}" beserta seluruh bank soalnya? Tindakan ini tidak bisa dibatalkan.`,
+      { title: 'Hapus Mapel?', icon: '🗑️', okLabel: 'Ya, Hapus', cancelLabel: 'Batal' }
+    );
+    if (!confirmed) return;
+
+    state.subjects.splice(state.activeSubjectIndex, 1);
+    state.activeSubjectIndex = 0;
+    persistAppData();
+    renderSubjectSelectors();
+    renderAdminQuestionsList();
+    sound.playPop();
+    startQuiz();
   }
 
   // ==========================================
@@ -869,11 +1023,13 @@
   // ==========================================
   // 8B. LEADERBOARD MODULE
   // ==========================================
-  const LEADERBOARD_STORAGE_KEY = 'tptup_leaderboard';
+  function getLeaderboardKey() {
+    return `tptup_leaderboard_${getActiveSubject().id}`;
+  }
 
   function getLeaderboardEntries() {
     try {
-      const raw = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
+      const raw = localStorage.getItem(getLeaderboardKey());
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (err) {
@@ -882,7 +1038,7 @@
   }
 
   function saveLeaderboardEntries(entries) {
-    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(getLeaderboardKey(), JSON.stringify(entries));
   }
 
   function handleSaveLeaderboard() {
@@ -990,6 +1146,9 @@
 
   function openLeaderboardView() {
     sound.playPop();
+    const subject = getActiveSubject();
+    DOM.leaderboardTitle.textContent = `🏆 Papan Peringkat — ${subject.name}`;
+    DOM.leaderboardSubtitle.textContent = `Skor tertinggi & waktu tercepat penyelesaian kuis mapel ${subject.name}.`;
     renderLeaderboard();
     showView(DOM.leaderboardView);
   }
@@ -1181,6 +1340,7 @@ ${formatInstructions}
   // ==========================================
   function renderAdminView() {
     DOM.inputApiKey.value = state.apiKey;
+    renderSubjectSelectors();
     renderAdminQuestionsList();
   }
 
@@ -1199,6 +1359,7 @@ ${formatInstructions}
 
   function renderAdminQuestionsList() {
     DOM.activeQuestionsCount.textContent = state.questions.length;
+    DOM.activeSubjectNameLabel.textContent = getActiveSubject().name;
     DOM.adminQuestionsList.innerHTML = '';
 
     state.questions.forEach((q, idx) => {
@@ -1219,6 +1380,7 @@ ${formatInstructions}
 
       card.querySelector('.btn-delete-q').addEventListener('click', () => {
         state.questions.splice(idx, 1);
+        persistAppData();
         renderAdminQuestionsList();
         sound.playPop();
       });
@@ -1238,7 +1400,7 @@ ${formatInstructions}
     if (qType === 'essay') {
       const essayKey = DOM.qEssayAnswer.value.trim();
       state.questions.push({
-        topic: topic || '⚙️ TPTUP',
+        topic: topic || '⚙️ Materi',
         type: 'essay',
         question: question,
         answerKey: essayKey || explanation,
@@ -1254,7 +1416,7 @@ ${formatInstructions}
       const answerIndex = parseInt(correctRadio.value, 10);
 
       state.questions.push({
-        topic: topic || '⚙️ TPTUP',
+        topic: topic || '⚙️ Materi',
         type: 'pilgan',
         question: question,
         options: [opt0, opt1, opt2, opt3],
@@ -1263,6 +1425,7 @@ ${formatInstructions}
       });
     }
 
+    persistAppData();
     renderAdminQuestionsList();
     DOM.modalAddQuestion.classList.add('hidden');
     DOM.formManualQuestion.reset();
@@ -1299,7 +1462,30 @@ ${formatInstructions}
       return;
     }
     sound.playPop();
+    const subjectSlug = getActiveSubject().name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'mapel';
     const blob = new Blob([JSON.stringify(state.questions, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `questions-${subjectSlug}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportAllSubjectsToJson() {
+    const totalQuestions = state.subjects.reduce((sum, s) => sum + s.questions.length, 0);
+    if (totalQuestions === 0) {
+      showNotice('Belum ada soal sama sekali di semua mapel, belum ada yang bisa di-export.', { title: 'Belum Ada Soal', icon: '📭', type: 'error' });
+      return;
+    }
+    sound.playPop();
+    const payload = {
+      subjects: state.subjects,
+      activeSubjectIndex: state.activeSubjectIndex
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1308,6 +1494,7 @@ ${formatInstructions}
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    showNotice('File questions.json (semua mapel) berhasil di-download. Taruh file ini sejajar dengan index.html sebelum di-hosting.', { title: 'Export Berhasil', icon: '✅' });
   }
 
   function handleImportQuestionsFile(e) {
@@ -1349,9 +1536,23 @@ ${formatInstructions}
       const res = await fetch('questions.json', { cache: 'no-store' });
       if (!res.ok) return;
       const parsed = await res.json();
-      const sanitized = sanitizeQuestionList(parsed);
-      if (sanitized && sanitized.length > 0) {
-        state.questions = sanitized;
+
+      if (parsed && Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
+        // Format baru: multi-mapel { subjects: [...], activeSubjectIndex }
+        const cleanSubjects = parsed.subjects.map((s, idx) => ({
+          id: s.id || `subj_${idx}`,
+          name: s.name || `Mapel ${idx + 1}`,
+          icon: s.icon || '📘',
+          questions: sanitizeQuestionList(s.questions) || []
+        }));
+        state.subjects = cleanSubjects;
+        state.activeSubjectIndex = Math.min(parsed.activeSubjectIndex || 0, cleanSubjects.length - 1);
+      } else {
+        // Format lama: array soal flat (dari versi sebelum fitur multi-mapel)
+        const sanitized = sanitizeQuestionList(parsed);
+        if (sanitized && sanitized.length > 0) {
+          state.questions = sanitized;
+        }
       }
     } catch (err) {
       // Tidak ada questions.json (atau tidak valid) — bank soal tetap kosong, tidak masalah.
@@ -1373,6 +1574,13 @@ ${formatInstructions}
     });
 
     // Leaderboard
+    // Subject (Mapel) Management
+    DOM.subjectPickerSelect.addEventListener('change', (e) => switchSubject(e.target.value));
+    DOM.adminSubjectSelect.addEventListener('change', (e) => switchSubject(e.target.value));
+    DOM.btnAddSubject.addEventListener('click', handleAddSubject);
+    DOM.btnRenameSubject.addEventListener('click', handleRenameSubject);
+    DOM.btnDeleteSubject.addEventListener('click', handleDeleteSubject);
+
     DOM.btnLeaderboard.addEventListener('click', openLeaderboardView);
     DOM.btnBackFromLeaderboard.addEventListener('click', closeLeaderboardView);
     DOM.btnClearLeaderboard.addEventListener('click', handleClearLeaderboard);
@@ -1456,6 +1664,7 @@ ${formatInstructions}
 
     // Export / Import Bank Soal
     DOM.btnExportQuestions.addEventListener('click', exportQuestionsToJson);
+    DOM.btnExportAllSubjects.addEventListener('click', exportAllSubjectsToJson);
     DOM.btnImportQuestions.addEventListener('click', () => DOM.inputImportQuestions.click());
     DOM.inputImportQuestions.addEventListener('change', handleImportQuestionsFile);
 
@@ -1480,7 +1689,14 @@ ${formatInstructions}
   // ==========================================
   async function init() {
     setupEventListeners();
-    await loadDefaultQuestionsFile();
+
+    const hasLocalData = loadAppDataFromStorage();
+    if (!hasLocalData) {
+      await loadDefaultQuestionsFile();
+      persistAppData();
+    }
+
+    renderSubjectSelectors();
     startQuiz();
   }
 

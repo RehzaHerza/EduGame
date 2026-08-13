@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TPTUP EduGame - Game Edukasi Teknik Refrigrasi & Tata Udara</title>
-  <meta name="description" content="Aplikasi game edukasi interaktif untuk mata pelajaran SMK TPTUP (Teknik Pemanasan, Tata Udara, dan Pendinginan) berbasis Web dan AI Gemini 3.5 Flash.">
+  <title>EduGame - Game Edukasi Interaktif Multi Mata Pelajaran</title>
+  <meta name="description" content="Aplikasi game edukasi interaktif berbasis Web dan AI Gemini 3.5 Flash — bisa dipakai untuk berbagai mata pelajaran.">
   
   <!-- Google Fonts: Plus Jakarta Sans & Poppins -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,8 +29,8 @@
       <div class="brand-group">
         <div class="brand-icon">❄️</div>
         <div class="brand-text">
-          <h1 class="brand-title">TPTUP EduGame</h1>
-          <span class="brand-subtitle">Teknik Pendingin & Tata Udara</span>
+          <h1 class="brand-title">EduGame</h1>
+          <span class="brand-subtitle" id="brand-subtitle">Memuat mata pelajaran...</span>
         </div>
       </div>
 
@@ -62,6 +62,12 @@
       </div>
     </header>
 
+    <!-- Mata Pelajaran (Subject) Picker -->
+    <div class="subject-picker-bar">
+      <span class="subject-picker-label">📚 Mata Pelajaran:</span>
+      <select id="subject-picker-select" class="subject-picker-select"></select>
+    </div>
+
     <!-- Main Content Area -->
     <main class="main-content">
 
@@ -84,7 +90,7 @@
         <div class="quiz-card" id="quiz-card">
           <div class="question-header">
             <h2 id="question-text" class="question-text">
-              Memuat soal kuis TPTUP...
+              Memuat soal kuis...
             </h2>
           </div>
 
@@ -128,7 +134,7 @@
         <div class="result-card">
           <div class="result-badge-icon" id="result-icon">🏆</div>
           <h2 class="result-title" id="result-title">Luar Biasa!</h2>
-          <p class="result-subtitle" id="result-subtitle">Kamu telah menyelesaikan Kuis TPTUP</p>
+          <p class="result-subtitle" id="result-subtitle">Kamu telah menyelesaikan Kuis</p>
 
           <!-- Score Summary Grid -->
           <div class="stats-summary-grid">
@@ -189,8 +195,8 @@
       <section id="leaderboard-view" class="view-section hidden">
         <div class="admin-header-card">
           <div class="admin-title-group">
-            <h2>🏆 Papan Peringkat TPTUP</h2>
-            <p>Skor tertinggi & waktu tercepat penyelesaian kuis.</p>
+            <h2 id="leaderboard-title">🏆 Papan Peringkat</h2>
+            <p id="leaderboard-subtitle">Skor tertinggi & waktu tercepat penyelesaian kuis.</p>
           </div>
           <button id="btn-back-from-leaderboard" class="btn btn-outline-dark">
             ⬅️ Kembali
@@ -219,8 +225,8 @@
       <section id="admin-view" class="view-section hidden">
         <div class="admin-header-card">
           <div class="admin-title-group">
-            <h2>⚙️ Panel Admin & Guru TPTUP</h2>
-            <p>Kelola API Key, buat soal AI dari Dokumen, atau atur mode kuis.</p>
+            <h2>⚙️ Panel Admin & Guru</h2>
+            <p>Kelola Mata Pelajaran, API Key, buat soal AI dari Dokumen, atau atur mode kuis.</p>
           </div>
           <button id="btn-back-to-game" class="btn btn-outline-dark">
             <span>⬅️ Kembali ke Game</span>
@@ -228,6 +234,31 @@
         </div>
 
         <div class="admin-grid">
+
+          <!-- Card 0: Manajemen Mata Pelajaran (Mapel) -->
+          <div class="admin-card full-width">
+            <div class="card-header">
+              <span class="card-icon">📚</span>
+              <h3>Manajemen Mata Pelajaran</h3>
+            </div>
+            <div class="card-body">
+              <p class="input-help">Setiap mapel punya bank soal & leaderboard sendiri-sendiri. Pilih mapel aktif, atau buat/ubah/hapus mapel di sini.</p>
+              <div class="admin-config-row">
+                <div class="form-group flex-1">
+                  <label for="admin-subject-select">Mapel Aktif:</label>
+                  <select id="admin-subject-select" class="form-input"></select>
+                </div>
+              </div>
+              <div class="subject-action-row">
+                <input type="text" id="input-new-subject-name" class="form-input" placeholder="Ketik nama mapel di sini (untuk Tambah Baru atau Ganti Nama)...">
+                <button id="btn-add-subject" class="btn btn-success">➕ Tambah Mapel</button>
+              </div>
+              <div class="subject-action-row">
+                <button id="btn-rename-subject" class="btn btn-secondary">✏️ Ganti Nama Mapel Aktif</button>
+                <button id="btn-delete-subject" class="btn btn-outline-dark">🗑️ Hapus Mapel Aktif</button>
+              </div>
+            </div>
+          </div>
 
           <!-- Card 1: Gemini API Key Setup -->
           <div class="admin-card">
@@ -335,22 +366,25 @@
             <div class="card-header space-between">
               <div class="header-title-flex">
                 <span class="card-icon">📚</span>
-                <h3>Bank Soal Aktif TPTUP (<span id="active-questions-count">0</span> Soal)</h3>
+                <h3>Bank Soal Aktif — <span id="active-subject-name">Mapel</span> (<span id="active-questions-count">0</span> Soal)</h3>
               </div>
               <div class="header-buttons">
                 <input type="file" id="input-import-questions" accept=".json" class="file-input-hidden">
                 <button id="btn-import-questions" class="btn btn-outline-dark">
-                  ⬆️ Import JSON
+                  ⬆️ Import JSON (Mapel Ini)
                 </button>
                 <button id="btn-export-questions" class="btn btn-outline-dark">
-                  ⬇️ Export JSON
+                  ⬇️ Export JSON (Mapel Ini)
                 </button>
                 <button id="btn-add-manual-q" class="btn btn-secondary">
                   ➕ Tambah Soal Manual
                 </button>
               </div>
             </div>
-            <p class="input-help" style="padding: 0 20px 12px;">💡 Setelah bank soal siap, klik <strong>Export JSON</strong> lalu simpan hasilnya sebagai file <code>questions.json</code> di folder project ini (sejajar dengan index.html) sebelum di-hosting — dengan begitu semua siswa langsung melihat soal yang sama tanpa perlu login admin.</p>
+            <p class="input-help" style="padding: 0 20px 4px;">💡 <strong>Export JSON (Mapel Ini)</strong> untuk backup/pindah satu bank soal. Untuk hosting ke siswa dengan <strong>SEMUA mapel sekaligus</strong>, klik <strong>Export Semua Mapel</strong> di bawah, lalu simpan hasilnya sebagai file <code>questions.json</code> sejajar dengan index.html sebelum di-hosting.</p>
+            <div style="padding: 0 20px 12px;">
+              <button id="btn-export-all-subjects" class="btn btn-success">📦 Export Semua Mapel (untuk Hosting)</button>
+            </div>
             <div class="card-body">
               <div id="admin-questions-list" class="questions-list">
                 <!-- Question items rendered here -->
@@ -365,7 +399,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>&copy; 2026 SMK TPTUP EduGame - Media Pembelajaran Interaktif Refrigrasi & Tata Udara</p>
+      <p>&copy; 2026 EduGame - Media Pembelajaran Interaktif Multi Mata Pelajaran</p>
     </footer>
 
   </div>
