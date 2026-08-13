@@ -71,6 +71,15 @@
     <!-- Main Content Area -->
     <main class="main-content">
 
+      <!-- Achievement Toast (muncul sesaat saat badge terbuka) -->
+      <div id="badge-toast" class="badge-toast hidden">
+        <span id="badge-toast-icon" class="badge-toast-icon">🏅</span>
+        <div class="badge-toast-text">
+          <span class="badge-toast-title">Pencapaian Terbuka!</span>
+          <span id="badge-toast-name" class="badge-toast-name">-</span>
+        </div>
+      </div>
+
       <!-- ================= QUIZ VIEW ================= -->
       <section id="quiz-view" class="view-section active">
         
@@ -80,10 +89,34 @@
             <span id="question-badge" class="badge badge-primary">Soal 1 dari 5</span>
             <span id="q-type-badge" class="badge badge-type">Pilihan Ganda</span>
             <span id="topic-badge" class="badge badge-topic">⚙️ Sistem Refrigerasi</span>
+            <span id="bonus-badge" class="badge badge-bonus hidden">🎁 SOAL BONUS x2!</span>
+            <span id="timer-badge" class="badge badge-timer">⏱️ 20</span>
           </div>
           <div class="progress-bar-track">
             <div id="progress-bar-fill" class="progress-bar-fill" style="width: 20%;"></div>
           </div>
+          <div class="timer-bar-track">
+            <div id="timer-bar-fill" class="timer-bar-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Power-up Bar -->
+        <div class="powerup-bar">
+          <button id="btn-powerup-fifty" class="powerup-btn" title="Hilangkan 2 opsi salah (1x pakai)">
+            <span class="powerup-icon">🎯</span>
+            <span class="powerup-label">50:50</span>
+            <span id="powerup-fifty-count" class="powerup-count">1</span>
+          </button>
+          <button id="btn-powerup-skip" class="powerup-btn" title="Lewati soal ini tanpa pengaruh skor (1x pakai)">
+            <span class="powerup-icon">⏭️</span>
+            <span class="powerup-label">Skip</span>
+            <span id="powerup-skip-count" class="powerup-count">1</span>
+          </button>
+          <button id="btn-powerup-double" class="powerup-btn" title="Poin x2 untuk soal ini kalau benar (1x pakai)">
+            <span class="powerup-icon">2️⃣</span>
+            <span class="powerup-label">Double Poin</span>
+            <span id="powerup-double-count" class="powerup-count">1</span>
+          </button>
         </div>
 
         <!-- Main Question Card -->
@@ -158,6 +191,12 @@
               <span class="stat-card-label">Waktu Selesai</span>
               <span class="stat-card-value text-primary" id="final-time">00:00</span>
             </div>
+          </div>
+
+          <!-- Earned Badges -->
+          <div id="earned-badges-box" class="earned-badges-box hidden">
+            <span class="leaderboard-save-label">🏅 Pencapaian yang Diraih:</span>
+            <div id="earned-badges-list" class="earned-badges-list"></div>
           </div>
 
           <!-- Save to Leaderboard -->

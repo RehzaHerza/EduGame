@@ -161,7 +161,17 @@
     extractedDocumentText: '',
     quizStartTime: 0,
     lastElapsedMs: 0,
-    lastMainView: 'quiz'
+    lastMainView: 'quiz',
+
+    // Gamification
+    bonusQuestionMap: {},      // { questionIndex: multiplier }
+    powerups: { fifty: 1, skip: 1, double: 1 },
+    doubleActiveThisQuestion: false,
+    fiftyUsedThisQuestion: false,
+    questionTimeLeft: 0,
+    questionTimeLimit: 0,
+    timerIntervalId: null,
+    earnedBadges: new Set()
   };
 
   // "state.questions" tetap berfungsi seperti sebelumnya (kode lama tidak perlu diubah),
@@ -240,7 +250,25 @@
     questionBadge: document.getElementById('question-badge'),
     qTypeBadge: document.getElementById('q-type-badge'),
     topicBadge: document.getElementById('topic-badge'),
+    bonusBadge: document.getElementById('bonus-badge'),
+    timerBadge: document.getElementById('timer-badge'),
+    timerBarFill: document.getElementById('timer-bar-fill'),
     progressBarFill: document.getElementById('progress-bar-fill'),
+
+    // Power-ups
+    btnPowerupFifty: document.getElementById('btn-powerup-fifty'),
+    btnPowerupSkip: document.getElementById('btn-powerup-skip'),
+    btnPowerupDouble: document.getElementById('btn-powerup-double'),
+    powerupFiftyCount: document.getElementById('powerup-fifty-count'),
+    powerupSkipCount: document.getElementById('powerup-skip-count'),
+    powerupDoubleCount: document.getElementById('powerup-double-count'),
+
+    // Achievement Toast & Earned Badges
+    badgeToast: document.getElementById('badge-toast'),
+    badgeToastIcon: document.getElementById('badge-toast-icon'),
+    badgeToastName: document.getElementById('badge-toast-name'),
+    earnedBadgesBox: document.getElementById('earned-badges-box'),
+    earnedBadgesList: document.getElementById('earned-badges-list'),
     questionText: document.getElementById('question-text'),
     optionsGrid: document.getElementById('options-grid'),
     essayContainer: document.getElementById('essay-container'),
@@ -598,6 +626,243 @@
   // ==========================================
   // 7. QUIZ LOGIC & RENDERING (PILGAN & ESSAY)
   // ==========================================
+  // ==========================================
+  // 6X. GAMIFICATION MODULE (Timer, Bonus, Power-up, Badge)
+  // ==========================================
+  const TIME_LIMIT_PILGAN = 20; // detik
+  const TIME_LIMIT_ESSAY = 60;  // detik
+  const BONUS_QUESTION_RATIO = 0.25; // ~25% soal jadi bonus tiap sesi kuis
+
+  const BADGE_DEFINITIONS = {
+    kilat: { icon: '⚡', name: 'Kilat Cepat', desc: 'Jawab benar dengan sisa waktu lebih dari 75%.' },
+    sempurna: { icon: '🎯', name: 'Sempurna', desc: 'Akurasi 100% dalam satu sesi kuis.' },
+    comboMaster: { icon: '🔥', name: 'Combo Master', desc: 'Mencapai combo x5 atau lebih.' },
+    bonusHunter: { icon: '🎁', name: 'Pemburu Bonus', desc: 'Jawab semua Soal Bonus dengan benar.' },
+    tanpaBantuan: { icon: '🏆', name: 'Tanpa Bantuan', desc: 'Selesaikan kuis tanpa memakai power-up sama sekali.' }
+  };
+
+  function assignBonusQuestions() {
+    state.bonusQuestionMap = {};
+    const totalQ = state.questions.length;
+    const bonusCount = Math.max(0, Math.round(totalQ * BONUS_QUESTION_RATIO));
+    const indices = Array.from({ length: totalQ }, (_, i) => i);
+
+    // Kocok urutan (Fisher-Yates) lalu ambil sejumlah bonusCount
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    indices.slice(0, bonusCount).forEach((idx) => {
+      state.bonusQuestionMap[idx] = Math.random() < 0.5 ? 2 : 3;
+    });
+  }
+
+  function getCurrentBonusMultiplier() {
+    return state.bonusQuestionMap[state.currentQuestionIndex] || 1;
+  }
+
+  function resetPowerupsForNewQuiz() {
+    state.powerups = { fifty: 1, skip: 1, double: 1 };
+    state.usedAnyPowerupThisQuiz = false;
+    updatePowerupUI();
+  }
+
+  function resetPowerupsForNewQuestion() {
+    state.fiftyUsedThisQuestion = false;
+    state.doubleActiveThisQuestion = false;
+    updatePowerupUI();
+  }
+
+  function updatePowerupUI() {
+    DOM.powerupFiftyCount.textContent = state.powerups.fifty;
+    DOM.powerupSkipCount.textContent = state.powerups.skip;
+    DOM.powerupDoubleCount.textContent = state.powerups.double;
+
+    const currentQ = state.questions[state.currentQuestionIndex];
+    const isEssay = currentQ && (currentQ.type === 'essay' || !currentQ.options);
+    const answered = state.answeredCurrent;
+
+    DOM.btnPowerupFifty.disabled = state.powerups.fifty <= 0 || answered || isEssay || state.fiftyUsedThisQuestion;
+    DOM.btnPowerupSkip.disabled = state.powerups.skip <= 0 || answered;
+    DOM.btnPowerupDouble.disabled = state.powerups.double <= 0 || answered || state.doubleActiveThisQuestion;
+
+    DOM.btnPowerupDouble.style.outline = state.doubleActiveThisQuestion ? '3px solid #eab308' : 'none';
+  }
+
+  function useFiftyFifty() {
+    if (DOM.btnPowerupFifty.disabled) return;
+    const currentQ = state.questions[state.currentQuestionIndex];
+    if (!currentQ || currentQ.type === 'essay' || !currentQ.options) return;
+
+    state.powerups.fifty -= 1;
+    state.fiftyUsedThisQuestion = true;
+    state.usedAnyPowerupThisQuiz = true;
+    sound.playPop();
+
+    const wrongIndices = [0, 1, 2, 3].filter(i => i !== currentQ.answer);
+    // Kocok lalu matikan 2 opsi salah
+    for (let i = wrongIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [wrongIndices[i], wrongIndices[j]] = [wrongIndices[j], wrongIndices[i]];
+    }
+    const toDisable = wrongIndices.slice(0, 2);
+
+    const optionBtns = DOM.optionsGrid.querySelectorAll('.option-btn');
+    toDisable.forEach((idx) => {
+      if (optionBtns[idx]) {
+        optionBtns[idx].disabled = true;
+        optionBtns[idx].classList.add('eliminated');
+      }
+    });
+
+    updatePowerupUI();
+  }
+
+  function useSkip() {
+    if (DOM.btnPowerupSkip.disabled) return;
+    state.powerups.skip -= 1;
+    state.usedAnyPowerupThisQuiz = true;
+    sound.playPop();
+
+    state.userAnswers.push({
+      questionIndex: state.currentQuestionIndex,
+      type: 'skipped',
+      isCorrect: false,
+      skipped: true
+    });
+
+    stopQuestionTimer();
+    if (state.currentQuestionIndex < state.questions.length - 1) {
+      state.currentQuestionIndex += 1;
+      renderCurrentQuestion();
+    } else {
+      showResults();
+    }
+  }
+
+  function useDoublePoin() {
+    if (DOM.btnPowerupDouble.disabled) return;
+    state.powerups.double -= 1;
+    state.doubleActiveThisQuestion = true;
+    state.usedAnyPowerupThisQuiz = true;
+    sound.playPop();
+    updatePowerupUI();
+  }
+
+  // --- Timer ---
+  function startQuestionTimer(limitSeconds) {
+    stopQuestionTimer();
+    state.questionTimeLimit = limitSeconds;
+    state.questionTimeLeft = limitSeconds;
+    updateTimerUI();
+
+    state.timerIntervalId = setInterval(() => {
+      state.questionTimeLeft -= 1;
+      updateTimerUI();
+      if (state.questionTimeLeft <= 0) {
+        stopQuestionTimer();
+        handleTimeUp();
+      }
+    }, 1000);
+  }
+
+  function stopQuestionTimer() {
+    if (state.timerIntervalId) {
+      clearInterval(state.timerIntervalId);
+      state.timerIntervalId = null;
+    }
+  }
+
+  function updateTimerUI() {
+    const pct = Math.max(0, Math.round((state.questionTimeLeft / state.questionTimeLimit) * 100));
+    DOM.timerBadge.textContent = `⏱️ ${Math.max(0, state.questionTimeLeft)}`;
+    DOM.timerBarFill.style.width = `${pct}%`;
+
+    const urgent = state.questionTimeLeft <= 5;
+    DOM.timerBadge.classList.toggle('timer-urgent', urgent);
+    DOM.timerBarFill.classList.toggle('timer-urgent', urgent);
+  }
+
+  function handleTimeUp() {
+    if (state.answeredCurrent) return;
+    const currentQ = state.questions[state.currentQuestionIndex];
+    const isEssay = currentQ && (currentQ.type === 'essay' || !currentQ.options);
+
+    if (isEssay) {
+      handleEssaySubmit(true); // true = waktu habis, paksa submit (kosong dianggap salah)
+    } else {
+      handleOptionClick(-1); // -1 = tidak ada opsi dipilih (otomatis salah)
+    }
+  }
+
+  // --- Badges ---
+  function unlockBadge(key) {
+    if (state.earnedBadges.has(key)) return;
+    state.earnedBadges.add(key);
+    const def = BADGE_DEFINITIONS[key];
+    if (!def) return;
+
+    DOM.badgeToastIcon.textContent = def.icon;
+    DOM.badgeToastName.textContent = def.name;
+    DOM.badgeToast.classList.remove('hidden');
+    requestAnimationFrame(() => DOM.badgeToast.classList.add('show'));
+    sound.playCorrect();
+
+    setTimeout(() => {
+      DOM.badgeToast.classList.remove('show');
+      setTimeout(() => DOM.badgeToast.classList.add('hidden'), 300);
+    }, 2500);
+  }
+
+  function checkBadgesAfterAnswer(isCorrect, timeLeftRatio) {
+    if (isCorrect && timeLeftRatio >= 0.75) {
+      unlockBadge('kilat');
+    }
+    if (state.combo >= 5) {
+      unlockBadge('comboMaster');
+    }
+  }
+
+  function checkBadgesAtEnd() {
+    const totalQ = state.questions.length;
+    const correctCount = state.userAnswers.filter(a => a.isCorrect).length;
+    if (totalQ > 0 && correctCount === totalQ) {
+      unlockBadge('sempurna');
+    }
+
+    const bonusIndices = Object.keys(state.bonusQuestionMap).map(Number);
+    if (bonusIndices.length > 0) {
+      const allBonusCorrect = bonusIndices.every((idx) => {
+        const ans = state.userAnswers.find(a => a.questionIndex === idx);
+        return ans && ans.isCorrect;
+      });
+      if (allBonusCorrect) unlockBadge('bonusHunter');
+    }
+
+    if (!state.usedAnyPowerupThisQuiz) {
+      unlockBadge('tanpaBantuan');
+    }
+  }
+
+  function renderEarnedBadges() {
+    if (state.earnedBadges.size === 0) {
+      DOM.earnedBadgesBox.classList.add('hidden');
+      return;
+    }
+    DOM.earnedBadgesBox.classList.remove('hidden');
+    DOM.earnedBadgesList.innerHTML = '';
+    state.earnedBadges.forEach((key) => {
+      const def = BADGE_DEFINITIONS[key];
+      if (!def) return;
+      const chip = document.createElement('div');
+      chip.className = 'earned-badge-chip';
+      chip.title = def.desc;
+      chip.innerHTML = `<span>${def.icon}</span><span>${def.name}</span>`;
+      DOM.earnedBadgesList.appendChild(chip);
+    });
+  }
+
   function startQuiz() {
     state.currentQuestionIndex = 0;
     state.score = 0;
@@ -606,6 +871,10 @@
     state.answeredCurrent = false;
     state.quizStartTime = Date.now();
     state.lastMainView = 'quiz';
+    state.earnedBadges = new Set();
+
+    assignBonusQuestions();
+    resetPowerupsForNewQuiz();
 
     updateHeaderStats();
     renderCurrentQuestion();
@@ -645,7 +914,15 @@
     
     const isEssay = (currentQ.type === 'essay' || !currentQ.options);
     DOM.qTypeBadge.textContent = isEssay ? '📝 Essay / Isian' : '📌 Pilihan Ganda';
-    DOM.topicBadge.textContent = currentQ.topic || '⚙️ TPTUP';
+    DOM.topicBadge.textContent = currentQ.topic || '⚙️ Materi';
+
+    const bonusMultiplier = getCurrentBonusMultiplier();
+    if (bonusMultiplier > 1) {
+      DOM.bonusBadge.textContent = `🎁 SOAL BONUS x${bonusMultiplier}!`;
+      DOM.bonusBadge.classList.remove('hidden');
+    } else {
+      DOM.bonusBadge.classList.add('hidden');
+    }
 
     const progressPercent = Math.round(((state.currentQuestionIndex + 1) / totalQ) * 100);
     DOM.progressBarFill.style.width = `${progressPercent}%`;
@@ -656,6 +933,9 @@
     // Reset Elements
     DOM.explanationBox.classList.add('hidden');
     DOM.btnNextQuestion.classList.add('hidden');
+
+    resetPowerupsForNewQuestion();
+    startQuestionTimer(isEssay ? TIME_LIMIT_ESSAY : TIME_LIMIT_PILGAN);
 
     if (isEssay) {
       // Show Essay View
@@ -694,9 +974,13 @@
   }
 
   function showEmptyState() {
+    stopQuestionTimer();
     DOM.questionBadge.textContent = 'Belum ada soal';
     DOM.qTypeBadge.textContent = '📭 Bank Soal Kosong';
     DOM.topicBadge.textContent = '';
+    DOM.bonusBadge.classList.add('hidden');
+    DOM.timerBadge.textContent = '⏱️ -';
+    DOM.timerBarFill.style.width = '0%';
     DOM.progressBarFill.style.width = '0%';
 
     DOM.questionText.textContent = 'Belum ada soal di Bank Soal. Silakan buka Panel Admin untuk generate soal AI atau tambah soal manual terlebih dahulu.';
@@ -778,21 +1062,34 @@
   function handleOptionClick(selectedIndex) {
     if (state.answeredCurrent) return;
     state.answeredCurrent = true;
+    stopQuestionTimer();
 
     const currentQ = state.questions[state.currentQuestionIndex];
     const isCorrect = (selectedIndex === currentQ.answer);
     const optionBtns = DOM.optionsGrid.querySelectorAll('.option-btn');
+    const timeLeftRatio = state.questionTimeLimit > 0 ? Math.max(0, state.questionTimeLeft) / state.questionTimeLimit : 0;
 
     optionBtns.forEach(btn => btn.disabled = true);
 
+    let pointsEarned = 0;
+
     if (isCorrect) {
       sound.playCorrect();
-      optionBtns[selectedIndex].classList.add('correct');
+      if (optionBtns[selectedIndex]) optionBtns[selectedIndex].classList.add('correct');
       state.combo += 1;
-      state.score += 100 * state.combo;
+
+      const basePoints = 100 * state.combo;
+      const speedBonus = Math.round(basePoints * 0.5 * timeLeftRatio); // hingga +50% dari sisa waktu
+      const bonusMultiplier = getCurrentBonusMultiplier();
+      const doubleMultiplier = state.doubleActiveThisQuestion ? 2 : 1;
+
+      pointsEarned = (basePoints + speedBonus) * bonusMultiplier * doubleMultiplier;
+      state.score += pointsEarned;
     } else {
       sound.playWrong();
-      optionBtns[selectedIndex].classList.add('wrong');
+      if (selectedIndex >= 0 && optionBtns[selectedIndex]) {
+        optionBtns[selectedIndex].classList.add('wrong');
+      }
       if (optionBtns[currentQ.answer]) {
         optionBtns[currentQ.answer].classList.add('correct');
       }
@@ -800,65 +1097,88 @@
     }
 
     updateHeaderStats();
+    checkBadgesAfterAnswer(isCorrect, timeLeftRatio);
 
     state.userAnswers.push({
       questionIndex: state.currentQuestionIndex,
       type: 'pilgan',
       selected: selectedIndex,
       correct: currentQ.answer,
-      isCorrect: isCorrect
+      isCorrect: isCorrect,
+      pointsEarned: pointsEarned
     });
 
-    DOM.explanationText.innerHTML = `<strong>Kunci:</strong> Opsi ${['A','B','C','D'][currentQ.answer]}<br>${currentQ.explanation || ''}`;
+    const bonusNote = getCurrentBonusMultiplier() > 1 ? ` (🎁 Bonus x${getCurrentBonusMultiplier()})` : '';
+    const pointsNote = isCorrect ? `<br><span style="color:#15803d; font-weight:700;">+${pointsEarned} poin${bonusNote}</span>` : '';
+    DOM.explanationText.innerHTML = `<strong>Kunci:</strong> Opsi ${['A','B','C','D'][currentQ.answer]}<br>${currentQ.explanation || ''}${pointsNote}`;
     DOM.explanationBox.classList.remove('hidden');
 
+    updatePowerupUI();
     revealNextButton();
   }
 
-  function handleEssaySubmit() {
+  function handleEssaySubmit(timeUp) {
     if (state.answeredCurrent) return;
     const userText = DOM.essayInput.value.trim();
 
-    if (!userText) {
+    if (!userText && !timeUp) {
       showNotice('Silakan tuliskan jawaban essay Kamu terlebih dahulu!', { title: 'Jawaban Kosong', icon: '✍️', type: 'error' })
         .then(() => DOM.essayInput.focus());
       return;
     }
 
     state.answeredCurrent = true;
+    stopQuestionTimer();
     DOM.essayInput.disabled = true;
     DOM.btnSubmitEssay.disabled = true;
 
     const currentQ = state.questions[state.currentQuestionIndex];
     const refAnswer = currentQ.answerKey || currentQ.explanation || 'Kunci jawaban telah tercantum.';
+    const finalUserText = userText || '(Waktu habis — tidak dijawab)';
+    const timeLeftRatio = state.questionTimeLimit > 0 ? Math.max(0, state.questionTimeLeft) / state.questionTimeLimit : 0;
 
-    const grading = gradeEssayAnswer(userText, refAnswer);
+    const grading = userText ? gradeEssayAnswer(userText, refAnswer) : { isCorrect: false };
+
+    let pointsEarned = 0;
 
     if (grading.isCorrect) {
       sound.playCorrect();
       state.combo += 1;
-      state.score += 100 * state.combo;
+
+      const basePoints = 100 * state.combo;
+      const speedBonus = Math.round(basePoints * 0.5 * timeLeftRatio);
+      const bonusMultiplier = getCurrentBonusMultiplier();
+      const doubleMultiplier = state.doubleActiveThisQuestion ? 2 : 1;
+
+      pointsEarned = (basePoints + speedBonus) * bonusMultiplier * doubleMultiplier;
+      state.score += pointsEarned;
     } else {
       sound.playWrong();
       state.combo = 0;
     }
     updateHeaderStats();
+    checkBadgesAfterAnswer(grading.isCorrect, timeLeftRatio);
 
     state.userAnswers.push({
       questionIndex: state.currentQuestionIndex,
       type: 'essay',
-      userText: userText,
+      userText: finalUserText,
       refAnswer: refAnswer,
-      isCorrect: grading.isCorrect
+      isCorrect: grading.isCorrect,
+      pointsEarned: pointsEarned
     });
 
     const badgeHtml = grading.isCorrect
       ? `<span style="color:#15803d; font-weight:800;">✅ Jawaban Dinilai BENAR</span>`
       : `<span style="color:#b91c1c; font-weight:800;">❌ Jawaban Dinilai KURANG TEPAT</span>`;
 
-    DOM.explanationText.innerHTML = `${badgeHtml}<br><br><strong>Jawaban Kamu:</strong> ${userText}<br><br><strong>🔑 Kunci Jawaban Referensi:</strong> ${refAnswer}`;
+    const bonusNote = getCurrentBonusMultiplier() > 1 ? ` (🎁 Bonus x${getCurrentBonusMultiplier()})` : '';
+    const pointsNote = grading.isCorrect ? `<br><span style="color:#15803d; font-weight:700;">+${pointsEarned} poin${bonusNote}</span>` : '';
+
+    DOM.explanationText.innerHTML = `${badgeHtml}<br><br><strong>Jawaban Kamu:</strong> ${finalUserText}<br><br><strong>🔑 Kunci Jawaban Referensi:</strong> ${refAnswer}${pointsNote}`;
     DOM.explanationBox.classList.remove('hidden');
 
+    updatePowerupUI();
     revealNextButton();
   }
 
@@ -882,6 +1202,7 @@
   // 8. RESULT VIEW & CONFETTI ENGINE
   // ==========================================
   function showResults() {
+    stopQuestionTimer();
     sound.playVictory();
     state.lastMainView = 'result';
     showView(DOM.resultView);
@@ -912,6 +1233,9 @@
 
     DOM.finalRank.textContent = rankTitle;
     DOM.resultIcon.textContent = icon;
+
+    checkBadgesAtEnd();
+    renderEarnedBadges();
 
     DOM.reviewPanel.classList.add('hidden');
     DOM.inputPlayerName.value = '';
@@ -1146,6 +1470,7 @@
 
   function openLeaderboardView() {
     sound.playPop();
+    stopQuestionTimer();
     const subject = getActiveSubject();
     DOM.leaderboardTitle.textContent = `🏆 Papan Peringkat — ${subject.name}`;
     DOM.leaderboardSubtitle.textContent = `Skor tertinggi & waktu tercepat penyelesaian kuis mapel ${subject.name}.`;
@@ -1565,6 +1890,7 @@ ${formatInstructions}
   function setupEventListeners() {
     // Admin Gear
     DOM.btnAdminGear.addEventListener('click', () => {
+      stopQuestionTimer();
       if (state.isAdminAuthenticated) {
         renderAdminView();
         showView(DOM.adminView);
@@ -1618,7 +1944,12 @@ ${formatInstructions}
     });
 
     // Quiz Actions
-    DOM.btnSubmitEssay.addEventListener('click', handleEssaySubmit);
+    DOM.btnSubmitEssay.addEventListener('click', () => handleEssaySubmit(false));
+
+    // Power-ups
+    DOM.btnPowerupFifty.addEventListener('click', useFiftyFifty);
+    DOM.btnPowerupSkip.addEventListener('click', useSkip);
+    DOM.btnPowerupDouble.addEventListener('click', useDoublePoin);
     DOM.btnNextQuestion.addEventListener('click', handleNextQuestion);
     DOM.btnRestartQuiz.addEventListener('click', () => {
       sound.playPop();
