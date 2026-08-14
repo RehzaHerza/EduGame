@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduGame - Belajar Jadi Menyenangkan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="join.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div class="brand-text">
+        <h1>Edu<span>Game</span></h1>
+        <p>Belajar jadi menyenangkan!</p>
+      </div>
+    </div>
+    <button class="btn-hint" id="btn-hint">❓ <span class="label">Petunjuk</span></button>
+  </div>
+
+  <div class="hero">
+    <h2>Selamat datang di <span>EduGame</span>!</h2>
+    <p>Jawab soal-soal seru dan tingkatkan pemahamanmu!</p>
+  </div>
+
+  <div class="main-card">
+    <div class="join-title">
+      <span>🎟️</span>
+      <h3>Pilih Kode Game dari Gurumu</h3>
+    </div>
+    <p class="join-desc">Masukkan kode yang diberikan guru untuk mulai mengerjakan soal.</p>
+
+    <form class="join-form" id="join-form">
+      <input type="text" id="input-game-code" placeholder="Contoh: RPL101" maxlength="8" autocomplete="off">
+      <button type="submit" class="btn-join" id="btn-join">
+        <span id="btn-join-label">Masuk Game</span> <span id="btn-join-arrow">→</span>
+      </button>
+    </form>
+    <p class="join-error" id="join-error"></p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🎯</div>
+        <h4>Kerjakan Soal</h4>
+        <p>Jawab soal pilihan ganda atau campuran dengan mudah.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <h4>Raih Poin</h4>
+        <p>Dapatkan poin dari setiap jawaban yang benar.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🥇</div>
+        <h4>Belajar Seru</h4>
+        <p>Belajar jadi lebih seru dengan EduGame!</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-box-text">
+        <span class="info-badge">Info untuk Siswa</span>
+        <p>Tidak perlu akun untuk bermain. Cukup masukkan kode game yang diberikan oleh gurumu.</p>
+      </div>
+      <div class="info-shield">🛡️</div>
+    </div>
+  </div>
+
+  <footer>© 2026 EduGame · Belajar jadi menyenangkan! 💙</footer>
+
+  <script type="module" src="join.js"></script>
+</body>
+</html>
