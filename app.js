@@ -303,6 +303,8 @@
     reviewPanel: document.getElementById('review-panel'),
     reviewList: document.getElementById('review-list'),
     confettiCanvas: document.getElementById('confetti-canvas'),
+    fxOverlay: document.getElementById('fx-overlay'),
+    appContainer: document.getElementById('app'),
 
     // Admin Elements
     btnBackToGame: document.getElementById('btn-back-to-game'),
@@ -808,6 +810,8 @@
     DOM.badgeToast.classList.remove('hidden');
     requestAnimationFrame(() => DOM.badgeToast.classList.add('show'));
     sound.playCorrect();
+    playFullscreenFx('badge');
+    triggerConfetti(40);
 
     setTimeout(() => {
       DOM.badgeToast.classList.remove('show');
@@ -920,6 +924,8 @@
     if (bonusMultiplier > 1) {
       DOM.bonusBadge.textContent = `🎁 SOAL BONUS x${bonusMultiplier}!`;
       DOM.bonusBadge.classList.remove('hidden');
+      playFullscreenFx('bonus');
+      triggerConfetti(35);
     } else {
       DOM.bonusBadge.classList.add('hidden');
     }
@@ -1077,6 +1083,7 @@
       sound.playCorrect();
       if (optionBtns[selectedIndex]) optionBtns[selectedIndex].classList.add('correct');
       state.combo += 1;
+      playFullscreenFx('correct');
 
       const basePoints = 100 * state.combo;
       const speedBonus = Math.round(basePoints * 0.5 * timeLeftRatio); // hingga +50% dari sisa waktu
@@ -1094,6 +1101,8 @@
         optionBtns[currentQ.answer].classList.add('correct');
       }
       state.combo = 0;
+      playFullscreenFx('wrong');
+      playShakeFx();
     }
 
     updateHeaderStats();
@@ -1144,6 +1153,7 @@
     if (grading.isCorrect) {
       sound.playCorrect();
       state.combo += 1;
+      playFullscreenFx('correct');
 
       const basePoints = 100 * state.combo;
       const speedBonus = Math.round(basePoints * 0.5 * timeLeftRatio);
@@ -1155,6 +1165,8 @@
     } else {
       sound.playWrong();
       state.combo = 0;
+      playFullscreenFx('wrong');
+      playShakeFx();
     }
     updateHeaderStats();
     checkBadgesAfterAnswer(grading.isCorrect, timeLeftRatio);
@@ -1251,16 +1263,30 @@
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
-  function triggerConfetti() {
+  function playFullscreenFx(type) {
+    DOM.fxOverlay.classList.remove('fx-correct', 'fx-wrong', 'fx-bonus', 'fx-badge');
+    void DOM.fxOverlay.offsetWidth; // force reflow supaya animasi bisa diulang
+    DOM.fxOverlay.classList.add(`fx-${type}`);
+    setTimeout(() => DOM.fxOverlay.classList.remove(`fx-${type}`), 1000);
+  }
+
+  function playShakeFx() {
+    DOM.appContainer.classList.remove('fx-shake');
+    void DOM.appContainer.offsetWidth;
+    DOM.appContainer.classList.add('fx-shake');
+    setTimeout(() => DOM.appContainer.classList.remove('fx-shake'), 400);
+  }
+
+  function triggerConfetti(particleCount = 90) {
     const canvas = DOM.confettiCanvas;
     const ctx = canvas.getContext('2d');
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
     const particles = [];
     const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height - canvas.height,

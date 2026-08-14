@@ -21,6 +21,10 @@
 </head>
 <body>
 
+  <!-- Fullscreen Effects Layer (confetti + color-flash) — di luar view-section supaya selalu bisa tampil full layar -->
+  <canvas id="confetti-canvas"></canvas>
+  <div id="fx-overlay" class="fx-overlay"></div>
+
   <!-- App Wrapper -->
   <div id="app" class="app-container">
 
@@ -163,7 +167,6 @@
 
       <!-- ================= RESULT / VICTORY VIEW ================= -->
       <section id="result-view" class="view-section hidden">
-        <canvas id="confetti-canvas"></canvas>
         <div class="result-card">
           <div class="result-badge-icon" id="result-icon">🏆</div>
           <h2 class="result-title" id="result-title">Luar Biasa!</h2>
