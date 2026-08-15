@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Guru - EduGame</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="join.css">
+<link rel="stylesheet" href="teacher-login.css">
+<link rel="stylesheet" href="teacher-dashboard.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div class="brand-text">
+        <h1>Edu<span>Game</span></h1>
+        <p id="teacher-email-label">Panel Guru</p>
+      </div>
+    </div>
+    <button class="btn-hint" id="btn-logout">🚪 <span class="label">Keluar</span></button>
+  </div>
+
+  <!-- ================= VIEW: SETUP GAME ================= -->
+  <div id="view-setup" class="dash-wrap">
+    <div class="main-card">
+      <div class="join-title">
+        <span>🕹️</span>
+        <h3>Buat Game Baru</h3>
+      </div>
+      <p class="join-desc">Pilih mapel dan mode, lalu buat kode game untuk dibagikan ke siswa.</p>
+
+      <!-- Pilih / Buat Mapel -->
+      <div class="form-field">
+        <label for="select-subject">Mata Pelajaran</label>
+        <select id="select-subject"></select>
+      </div>
+
+      <div class="new-subject-row">
+        <input type="text" id="input-new-subject" placeholder="Atau ketik nama mapel baru...">
+        <button type="button" class="btn-secondary-sm" id="btn-add-subject">➕ Tambah</button>
+      </div>
+
+      <!-- Pilih Mode -->
+      <div class="form-field mode-field">
+        <label>Mode Permainan</label>
+        <div class="mode-options">
+          <label class="mode-card">
+            <input type="radio" name="game-mode" value="live" checked>
+            <span class="mode-icon">🟢</span>
+            <span class="mode-title">Live Bareng</span>
+            <span class="mode-desc">Semua siswa jawab soal yang sama serentak, guru pegang kendali.</span>
+          </label>
+          <label class="mode-card">
+            <input type="radio" name="game-mode" value="mandiri">
+            <span class="mode-icon">🚀</span>
+            <span class="mode-title">Mandiri</span>
+            <span class="mode-desc">Siswa kerjakan sendiri-sendiri dengan kecepatan masing-masing.</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="button" class="btn-join btn-full" id="btn-create-game">
+        <span id="btn-create-label">🎲 Buat Kode Game</span>
+      </button>
+      <p class="join-error" id="setup-error"></p>
+    </div>
+  </div>
+
+  <!-- ================= VIEW: KODE GAME SIAP ================= -->
+  <div id="view-code" class="dash-wrap hidden">
+    <div class="main-card code-card">
+      <div class="join-title">
+        <span>✅</span>
+        <h3>Game Siap!</h3>
+      </div>
+      <p class="join-desc">Bagikan kode ini ke siswa kamu.</p>
+
+      <div class="code-display" id="code-display">------</div>
+      <button type="button" class="btn-secondary-sm" id="btn-copy-code">📋 Salin Kode</button>
+
+      <div class="code-meta">
+        <span id="code-subject-label"></span> · <span id="code-mode-label"></span>
+      </div>
+
+      <button type="button" class="btn-join btn-full" id="btn-back-to-setup">
+        ⬅️ Buat Game Baru Lain
+      </button>
+    </div>
+  </div>
+
+  <footer>© 2026 EduGame · Panel khusus guru</footer>
+
+  <script type="module" src="teacher-dashboard.js"></script>
+</body>
+</html>
