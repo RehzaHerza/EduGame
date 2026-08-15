@@ -99,3 +99,45 @@
 }
 
 .final-detail { color: var(--text-muted); font-size: 0.9rem; }
+
+/* Leaderboard */
+.leaderboard-box {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.leaderboard-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; text-align: center; }
+
+.leaderboard-list-play {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-loading { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+.leaderboard-row-play {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  border: 1.5px solid var(--border);
+}
+
+.leaderboard-row-play.is-me {
+  background: #eef2ff;
+  border-color: var(--blue);
+}
+
+.leaderboard-row-play.rank-1 { background: #fffbeb; border-color: #fbbf24; }
+.leaderboard-row-play.rank-2 { background: #f8fafc; border-color: #cbd5e1; }
+.leaderboard-row-play.rank-3 { background: #fff7ed; border-color: #fb923c; }
+
+.lb-rank { font-weight: 800; min-width: 26px; text-align: center; color: var(--text-muted); }
+.lb-name { flex: 1; font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-score { font-weight: 800; color: var(--blue-dark); font-size: 0.9rem; }
+.lb-status { font-size: 0.7rem; color: var(--text-muted); }

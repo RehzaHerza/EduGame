@@ -1,7 +1,7 @@
 import { db, auth } from "./firebase-init.js";
 import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, serverTimestamp
+  doc, getDoc, setDoc, serverTimestamp, collection, onSnapshot, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -30,6 +30,7 @@ const btnNextQuestion = document.getElementById('btn-next-question');
 const finalScore = document.getElementById('final-score');
 const finalDetail = document.getElementById('final-detail');
 const resultIcon = document.getElementById('result-icon');
+const leaderboardList = document.getElementById('leaderboard-list');
 
 let sessionData = null;
 let questions = [];
@@ -192,6 +193,48 @@ btnNextQuestion.addEventListener('click', () => {
 });
 
 // ==========================================
+// LEADERBOARD REAL-TIME
+// ==========================================
+function listenToLeaderboard() {
+  const participantsRef = collection(db, 'game_sessions', sessionId, 'participants');
+  const q = query(participantsRef, orderBy('score', 'desc'));
+
+  onSnapshot(q, (snapshot) => {
+    leaderboardList.innerHTML = '';
+
+    if (snapshot.empty) {
+      leaderboardList.innerHTML = '<p class="leaderboard-loading">Belum ada peserta.</p>';
+      return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    let rank = 0;
+
+    snapshot.forEach((docSnap) => {
+      rank += 1;
+      const data = docSnap.data();
+      const isMe = docSnap.id === auth.currentUser.uid;
+
+      const row = document.createElement('div');
+      row.className = `leaderboard-row-play ${rank <= 3 ? `rank-${rank}` : ''} ${isMe ? 'is-me' : ''}`;
+      row.innerHTML = `
+        <span class="lb-rank">${medals[rank - 1] || `#${rank}`}</span>
+        <span class="lb-name">${escapeHtml(data.name || 'Anonim')}${isMe ? ' (Kamu)' : ''}</span>
+        <span class="lb-score">${data.score || 0}</span>
+        <span class="lb-status">${data.status === 'finished' ? '✅' : '⏳'}</span>
+      `;
+      leaderboardList.appendChild(row);
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ==========================================
 // SELESAI
 // ==========================================
 async function finishGame() {
@@ -211,4 +254,5 @@ async function finishGame() {
   }
 
   showView(viewResult);
+  listenToLeaderboard();
 }
