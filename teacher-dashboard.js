@@ -130,6 +130,195 @@ btnToggleAddQuestion.addEventListener('click', () => {
   formAddQuestion.classList.toggle('hidden');
 });
 
+// ==========================================
+// GENERATE SOAL AI (Gemini) — migrasi dari versi statis
+// ==========================================
+const btnToggleAiGenerate = document.getElementById('btn-toggle-ai-generate');
+const aiGeneratePanel = document.getElementById('ai-generate-panel');
+const inputApiKey = document.getElementById('input-api-key');
+const inputFileMaterial = document.getElementById('input-file-material');
+const inputMaterialText = document.getElementById('input-material-text');
+const inputAiCount = document.getElementById('input-ai-count');
+const btnGenerateAi = document.getElementById('btn-generate-ai');
+const btnGenerateAiLabel = document.getElementById('btn-generate-ai-label');
+const aiStatus = document.getElementById('ai-status');
+
+// API key disimpan di localStorage browser guru, sama seperti versi lama
+inputApiKey.value = localStorage.getItem('edugame_gemini_api_key') || '';
+inputApiKey.addEventListener('change', () => {
+  localStorage.setItem('edugame_gemini_api_key', inputApiKey.value.trim());
+});
+
+btnToggleAiGenerate.addEventListener('click', () => {
+  aiGeneratePanel.classList.toggle('hidden');
+});
+
+function showAiStatus(message, type) {
+  aiStatus.textContent = message;
+  aiStatus.style.color = type === 'success' ? '#15803d' : '#dc2626';
+}
+
+// --- Baca isi file (PDF, DOCX, XLSX, TXT) ---
+async function extractTextFromFile(file) {
+  const fileName = file.name.toLowerCase();
+  const arrayBuffer = await file.arrayBuffer();
+
+  if (fileName.endsWith('.pdf')) {
+    if (!window.pdfjsLib) throw new Error('Library PDF.js belum siap.');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text;
+  }
+
+  if (fileName.endsWith('.docx')) {
+    if (!window.mammoth) throw new Error('Library Mammoth.js belum siap.');
+    const result = await window.mammoth.extractRawText({ arrayBuffer });
+    return result.value;
+  }
+
+  if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+    if (!window.XLSX) throw new Error('Library SheetJS belum siap.');
+    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+    let text = '';
+    workbook.SheetNames.forEach((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName];
+      text += window.XLSX.utils.sheet_to_csv(worksheet) + '\n';
+    });
+    return text;
+  }
+
+  const textDecoder = new TextDecoder('utf-8');
+  return textDecoder.decode(arrayBuffer);
+}
+
+// --- Generate soal via Gemini ---
+btnGenerateAi.addEventListener('click', async () => {
+  const apiKey = inputApiKey.value.trim();
+  const manualText = inputMaterialText.value.trim();
+  const qCount = parseInt(inputAiCount.value, 10) || 5;
+  const subjectId = selectSubject.value;
+
+  showAiStatus('', null);
+
+  if (!subjectId) {
+    showAiStatus('Pilih mata pelajaran dulu.', 'error');
+    return;
+  }
+  if (!apiKey) {
+    showAiStatus('Masukkan Gemini API Key dulu.', 'error');
+    inputApiKey.focus();
+    return;
+  }
+
+  btnGenerateAi.disabled = true;
+  btnGenerateAiLabel.textContent = 'Memproses materi...';
+
+  let fullMaterialText = manualText;
+  const file = inputFileMaterial.files[0];
+
+  if (file) {
+    try {
+      showAiStatus(`Membaca dokumen ${file.name}...`, null);
+      const docText = await extractTextFromFile(file);
+      fullMaterialText = `DOKUMEN TERUNGGAH (${file.name}):\n${docText}\n\n${manualText}`;
+    } catch (err) {
+      btnGenerateAi.disabled = false;
+      btnGenerateAiLabel.textContent = '✨ Generate Soal AI';
+      showAiStatus(`Gagal membaca file: ${err.message}`, 'error');
+      return;
+    }
+  }
+
+  if (!fullMaterialText || fullMaterialText.trim().length < 15) {
+    btnGenerateAi.disabled = false;
+    btnGenerateAiLabel.textContent = '✨ Generate Soal AI';
+    showAiStatus('Unggah dokumen atau tulis teks materi dulu.', 'error');
+    return;
+  }
+
+  showAiStatus(`Mengirim ke Gemini (menyusun ${qCount} soal pilgan)...`, null);
+  btnGenerateAiLabel.textContent = 'Generate sedang berjalan...';
+
+  const promptText = `
+Anda adalah seorang instruktur ahli yang menyusun soal ujian berkualitas tinggi.
+Berdasarkan materi berikut (apapun topik/bidang studinya), buatlah ${qCount} soal pilihan ganda yang relevan dengan isi materi tersebut.
+
+TEKS MATERI:
+"""
+${fullMaterialText.substring(0, 15000)}
+"""
+
+PETUNJUK FORMAT OUTPUT WAJIB:
+- Kembalikan HANYA JSON array murni tanpa pembungkus markdown seperti \`\`\`json.
+- Format setiap soal:
+  { "question": "...", "options": ["Opsi A","Opsi B","Opsi C","Opsi D"], "answer": 0, "explanation": "..." }
+- "answer" adalah indeks angka 0, 1, 2, atau 3.
+- Buat tepat ${qCount} soal, berkualitas tinggi dan akurat sesuai materi.
+  `.trim();
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!aiText) throw new Error('Respon Gemini kosong.');
+
+    let cleanedJson = aiText.trim();
+    if (cleanedJson.startsWith('```')) {
+      cleanedJson = cleanedJson.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const generatedQuestions = JSON.parse(cleanedJson);
+    if (!Array.isArray(generatedQuestions) || generatedQuestions.length === 0) {
+      throw new Error('Format respon AI bukan array soal.');
+    }
+
+    const sanitized = generatedQuestions.map((q, idx) => ({
+      type: 'pilgan',
+      question: q.question || `Soal ${idx + 1}`,
+      options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Opsi A', 'Opsi B', 'Opsi C', 'Opsi D'],
+      answer: typeof q.answer === 'number' ? q.answer : 0,
+      explanation: q.explanation || ''
+    }));
+
+    // Simpan semua soal baru sekaligus ke Firestore
+    for (const q of sanitized) {
+      await updateDoc(doc(db, 'subjects', subjectId), { questions: arrayUnion(q) });
+    }
+
+    await loadSubjects();
+    selectSubject.value = subjectId;
+    updateQuestionCount();
+
+    showAiStatus(`✅ Berhasil! ${sanitized.length} soal baru ditambahkan oleh Gemini.`, 'success');
+    inputFileMaterial.value = '';
+
+  } catch (err) {
+    console.error('Gemini API Error:', err);
+    showAiStatus(`Gagal membuat soal: ${err.message}`, 'error');
+  } finally {
+    btnGenerateAi.disabled = false;
+    btnGenerateAiLabel.textContent = '✨ Generate Soal AI';
+  }
+});
+
 function showSavedToast() {
   const btn = document.getElementById('btn-save-question');
   const original = btn.textContent;

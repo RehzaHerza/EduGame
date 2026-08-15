@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="join.css">
 <link rel="stylesheet" href="teacher-login.css">
 <link rel="stylesheet" href="teacher-dashboard.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -50,10 +53,42 @@
             <span class="question-count-number" id="question-count">0</span>
             <span class="question-count-text">Soal Tersimpan</span>
           </div>
-          <button type="button" class="btn-secondary-sm" id="btn-toggle-add-question">➕ Tambah Soal</button>
+          <div class="question-panel-buttons">
+            <button type="button" class="btn-secondary-sm" id="btn-toggle-ai-generate">✨ Generate AI</button>
+            <button type="button" class="btn-secondary-sm" id="btn-toggle-add-question">➕ Tambah Manual</button>
+          </div>
         </div>
 
         <div id="question-list" class="question-list"></div>
+
+        <!-- Panel Generate Soal AI (Gemini) -->
+        <div id="ai-generate-panel" class="ai-generate-panel hidden">
+          <div class="form-field">
+            <label for="input-api-key">🔑 Google Gemini API Key</label>
+            <input type="password" id="input-api-key" placeholder="AIzaSy...">
+            <p class="input-help-sm">Disimpan di browser kamu saja (localStorage), tidak dikirim ke server EduGame.</p>
+          </div>
+
+          <div class="form-field">
+            <label for="input-file-material">📎 Unggah Dokumen Materi (PDF, DOCX, XLSX, TXT)</label>
+            <input type="file" id="input-file-material" accept=".pdf,.docx,.xlsx,.xls,.txt">
+          </div>
+
+          <div class="form-field">
+            <label for="input-material-text">✍️ Atau Tempel Teks Materi</label>
+            <textarea id="input-material-text" rows="4" placeholder="Ketik/tempel materi di sini..."></textarea>
+          </div>
+
+          <div class="form-field">
+            <label for="input-ai-count">Jumlah Soal Pilgan</label>
+            <input type="number" id="input-ai-count" value="5" min="1" max="20">
+          </div>
+
+          <button type="button" class="btn-join btn-full" id="btn-generate-ai">
+            <span id="btn-generate-ai-label">✨ Generate Soal AI</span>
+          </button>
+          <p class="join-error" id="ai-status"></p>
+        </div>
 
         <form id="form-add-question" class="add-question-form hidden">
           <input type="text" id="q-text" placeholder="Tulis pertanyaan..." required>
