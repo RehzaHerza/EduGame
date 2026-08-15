@@ -4,7 +4,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection, addDoc, getDocs, query, where, limit, serverTimestamp,
-  doc, updateDoc, arrayUnion
+  doc, updateDoc, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const teacherEmailLabel = document.getElementById('teacher-email-label');
@@ -22,6 +22,7 @@ const btnCreateLabel = document.getElementById('btn-create-label');
 const setupError = document.getElementById('setup-error');
 
 const questionCountLabel = document.getElementById('question-count');
+const questionList = document.getElementById('question-list');
 const btnToggleAddQuestion = document.getElementById('btn-toggle-add-question');
 const formAddQuestion = document.getElementById('form-add-question');
 
@@ -76,8 +77,51 @@ async function loadSubjects() {
 
 function updateQuestionCount() {
   const subject = subjectsCache.find(s => s.id === selectSubject.value);
-  const count = subject && Array.isArray(subject.questions) ? subject.questions.length : 0;
-  questionCountLabel.textContent = count;
+  const questions = subject && Array.isArray(subject.questions) ? subject.questions : [];
+  questionCountLabel.textContent = questions.length;
+  renderQuestionList(subject ? subject.id : null, questions);
+}
+
+function renderQuestionList(subjectId, questions) {
+  questionList.innerHTML = '';
+
+  if (questions.length === 0) {
+    questionList.innerHTML = '<p class="question-list-empty">Belum ada soal untuk mapel ini.</p>';
+    return;
+  }
+
+  questions.forEach((q, idx) => {
+    const item = document.createElement('div');
+    item.className = 'question-list-item';
+    item.innerHTML = `
+      <span class="q-num">${idx + 1}.</span>
+      <span class="q-text">${escapeHtml(q.question)}</span>
+      <button type="button" class="btn-delete-q" title="Hapus soal ini">🗑️</button>
+    `;
+    item.querySelector('.btn-delete-q').addEventListener('click', () => deleteQuestion(subjectId, q));
+    questionList.appendChild(item);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function deleteQuestion(subjectId, questionObj) {
+  if (!confirm('Hapus soal ini?')) return;
+  try {
+    await updateDoc(doc(db, 'subjects', subjectId), {
+      questions: arrayRemove(questionObj)
+    });
+    await loadSubjects();
+    selectSubject.value = subjectId;
+    updateQuestionCount();
+  } catch (err) {
+    console.error(err);
+    setupError.textContent = 'Gagal menghapus soal. Coba lagi.';
+  }
 }
 
 selectSubject.addEventListener('change', updateQuestionCount);
@@ -85,6 +129,13 @@ selectSubject.addEventListener('change', updateQuestionCount);
 btnToggleAddQuestion.addEventListener('click', () => {
   formAddQuestion.classList.toggle('hidden');
 });
+
+function showSavedToast() {
+  const btn = document.getElementById('btn-save-question');
+  const original = btn.textContent;
+  btn.textContent = '✅ Tersimpan! Lanjut ketik soal berikutnya...';
+  setTimeout(() => { btn.textContent = original; }, 1600);
+}
 
 formAddQuestion.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -112,10 +163,13 @@ formAddQuestion.addEventListener('submit', async (e) => {
       questions: arrayUnion(newQuestion)
     });
     formAddQuestion.reset();
-    formAddQuestion.classList.add('hidden');
     await loadSubjects();
     selectSubject.value = subjectId;
     updateQuestionCount();
+
+    setupError.textContent = '';
+    document.getElementById('q-text').focus();
+    showSavedToast();
   } catch (err) {
     console.error(err);
     setupError.textContent = 'Gagal menyimpan soal. Coba lagi.';
@@ -181,7 +235,12 @@ btnCreateGame.addEventListener('click', async () => {
     return;
   }
 
-  const mode = document.querySelector('input[name="game-mode"]:checked').value;
+  const selectedModeInput = document.querySelector('input[name="game-mode"]:checked');
+  if (!selectedModeInput) {
+    setupError.textContent = 'Pilih dulu mode permainannya (Live Bareng atau Mandiri).';
+    return;
+  }
+  const mode = selectedModeInput.value;
   const subject = subjectsCache.find(s => s.id === subjectId);
 
   const questionCount = subject && Array.isArray(subject.questions) ? subject.questions.length : 0;
