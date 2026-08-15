@@ -1,0 +1,55 @@
+/* ==========================================
+   TEACHER LOGIN PAGE STYLES
+   (pakai variabel & class dasar dari join.css: --blue, .topbar, .brand, .main-card, .join-title, .join-desc, .join-error, .btn-join)
+   ========================================== */
+
+.login-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.login-card {
+  max-width: 420px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.form-field input {
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.btn-full {
+  width: 100%;
+  justify-content: center;
+  padding: 14px;
+  margin-top: 6px;
+}

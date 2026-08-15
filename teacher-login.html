@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Guru - EduGame</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="join.css">
+<link rel="stylesheet" href="teacher-login.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div class="brand-text">
+        <h1>Edu<span>Game</span></h1>
+        <p>Panel Guru</p>
+      </div>
+    </div>
+    <a href="join.html" class="btn-hint">⬅️ <span class="label">Kembali ke Beranda</span></a>
+  </div>
+
+  <div class="login-wrap">
+    <div class="main-card login-card">
+      <div class="join-title">
+        <span>🔑</span>
+        <h3>Login Guru</h3>
+      </div>
+      <p class="join-desc">Masuk untuk membuat & mengelola game untuk siswa kamu.</p>
+
+      <form id="login-form" class="login-form">
+        <div class="form-field">
+          <label for="input-email">Email</label>
+          <input type="email" id="input-email" placeholder="guru@sekolah.com" required autocomplete="username">
+        </div>
+        <div class="form-field">
+          <label for="input-password">Password</label>
+          <input type="password" id="input-password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-join btn-full" id="btn-login">
+          <span id="btn-login-label">Masuk</span>
+        </button>
+      </form>
+      <p class="join-error" id="login-error"></p>
+    </div>
+  </div>
+
+  <footer>© 2026 EduGame · Panel khusus guru</footer>
+
+  <script type="module" src="teacher-login.js"></script>
+</body>
+</html>
