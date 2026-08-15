@@ -52,6 +52,19 @@ if (!sessionId) {
   showView(viewName);
 }
 
+let myUid = null; // UID final yang dipakai konsisten di seluruh sesi main ini
+
+// Tunggu Firebase Auth selesai memulihkan sesi login (dari join.html) sebelum
+// memutuskan apakah perlu bikin identitas anonim baru atau tidak.
+function waitForAuthReady() {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user);
+    });
+  });
+}
+
 // ==========================================
 // STEP 1: ISI NAMA
 // ==========================================
@@ -65,9 +78,12 @@ formName.addEventListener('submit', async (e) => {
   showView(viewLoading);
 
   try {
-    if (!auth.currentUser) {
-      await signInAnonymously(auth);
+    let user = await waitForAuthReady();
+    if (!user) {
+      const cred = await signInAnonymously(auth);
+      user = cred.user;
     }
+    myUid = user.uid;
     await loadSessionAndQuestions();
   } catch (err) {
     console.error(err);
@@ -99,7 +115,7 @@ async function loadSessionAndQuestions() {
   }
 
   // Catat peserta ke Firestore (biar guru & leaderboard nanti bisa lihat)
-  await setDoc(doc(db, 'game_sessions', sessionId, 'participants', auth.currentUser.uid), {
+  await setDoc(doc(db, 'game_sessions', sessionId, 'participants', myUid), {
     name: playerName,
     score: 0,
     correctCount: 0,
@@ -173,7 +189,7 @@ async function handleAnswer(selectedIndex) {
 
   // Simpan progres ke Firestore setiap jawab (biar leaderboard bisa real-time nanti)
   try {
-    await setDoc(doc(db, 'game_sessions', sessionId, 'participants', auth.currentUser.uid), {
+    await setDoc(doc(db, 'game_sessions', sessionId, 'participants', myUid), {
       score: score,
       correctCount: correctCount,
       currentIndex: currentIndex + 1
@@ -213,7 +229,7 @@ function listenToLeaderboard() {
     snapshot.forEach((docSnap) => {
       rank += 1;
       const data = docSnap.data();
-      const isMe = docSnap.id === auth.currentUser.uid;
+      const isMe = docSnap.id === myUid;
 
       const row = document.createElement('div');
       row.className = `leaderboard-row-play ${rank <= 3 ? `rank-${rank}` : ''} ${isMe ? 'is-me' : ''}`;
@@ -245,7 +261,7 @@ async function finishGame() {
   resultIcon.textContent = accuracy === 100 ? '🏆' : accuracy >= 60 ? '🥇' : '🔧';
 
   try {
-    await setDoc(doc(db, 'game_sessions', sessionId, 'participants', auth.currentUser.uid), {
+    await setDoc(doc(db, 'game_sessions', sessionId, 'participants', myUid), {
       status: 'finished',
       finishedAt: serverTimestamp()
     }, { merge: true });

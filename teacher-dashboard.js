@@ -46,7 +46,26 @@ onAuthStateChanged(auth, (user) => {
   currentUser = user;
   teacherEmailLabel.textContent = user.email;
   loadSubjects();
+  restoreActiveGameIfAny();
 });
+
+function restoreActiveGameIfAny() {
+  const savedSessionId = sessionStorage.getItem('edugame_active_session_id');
+  const savedCode = sessionStorage.getItem('edugame_active_code');
+  const savedSubjectName = sessionStorage.getItem('edugame_active_subject_name');
+  const savedMode = sessionStorage.getItem('edugame_active_mode');
+
+  if (!savedSessionId) return;
+
+  codeDisplay.textContent = savedCode || '------';
+  codeSubjectLabel.textContent = savedSubjectName ? `📚 ${savedSubjectName}` : '';
+  codeModeLabel.textContent = savedMode === 'live' ? '🟢 Live Bareng' : '🚀 Mandiri';
+
+  viewSetup.classList.add('hidden');
+  viewCode.classList.remove('hidden');
+
+  listenToParticipants(savedSessionId);
+}
 
 btnLogout.addEventListener('click', async () => {
   await signOut(auth);
@@ -460,6 +479,11 @@ btnCreateGame.addEventListener('click', async () => {
     codeSubjectLabel.textContent = `📚 ${subject.name}`;
     codeModeLabel.textContent = mode === 'live' ? '🟢 Live Bareng' : '🚀 Mandiri';
 
+    sessionStorage.setItem('edugame_active_session_id', sessionRef.id);
+    sessionStorage.setItem('edugame_active_code', code);
+    sessionStorage.setItem('edugame_active_subject_name', subject.name);
+    sessionStorage.setItem('edugame_active_mode', mode);
+
     viewSetup.classList.add('hidden');
     viewCode.classList.remove('hidden');
 
@@ -526,6 +550,10 @@ btnBackToSetup.addEventListener('click', () => {
     unsubscribeParticipants();
     unsubscribeParticipants = null;
   }
+  sessionStorage.removeItem('edugame_active_session_id');
+  sessionStorage.removeItem('edugame_active_code');
+  sessionStorage.removeItem('edugame_active_subject_name');
+  sessionStorage.removeItem('edugame_active_mode');
   viewCode.classList.add('hidden');
   viewSetup.classList.remove('hidden');
 });
