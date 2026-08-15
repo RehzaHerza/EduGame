@@ -4,7 +4,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection, addDoc, getDocs, query, where, limit, serverTimestamp,
-  doc, updateDoc, arrayUnion, arrayRemove
+  doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, orderBy
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const teacherEmailLabel = document.getElementById('teacher-email-label');
@@ -307,8 +307,9 @@ PETUNJUK FORMAT OUTPUT WAJIB:
     selectSubject.value = subjectId;
     updateQuestionCount();
 
-    showAiStatus(`✅ Berhasil! ${sanitized.length} soal baru ditambahkan oleh Gemini.`, 'success');
+    showAiStatus(`✅ Berhasil! ${sanitized.length} soal sudah OTOMATIS tersimpan ke Bank Soal. Tidak perlu isi form manual lagi — cek daftar soal di atas.`, 'success');
     inputFileMaterial.value = '';
+    questionList.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   } catch (err) {
     console.error('Gemini API Error:', err);
@@ -444,7 +445,7 @@ btnCreateGame.addEventListener('click', async () => {
   try {
     const code = await generateUniqueCode();
 
-    await addDoc(collection(db, 'game_sessions'), {
+    const sessionRef = await addDoc(collection(db, 'game_sessions'), {
       code: code,
       mode: mode,
       subjectId: subjectId,
@@ -462,6 +463,8 @@ btnCreateGame.addEventListener('click', async () => {
     viewSetup.classList.add('hidden');
     viewCode.classList.remove('hidden');
 
+    listenToParticipants(sessionRef.id);
+
   } catch (err) {
     console.error(err);
     setupError.textContent = 'Gagal membuat game. Cek koneksi internet, coba lagi.';
@@ -471,6 +474,46 @@ btnCreateGame.addEventListener('click', async () => {
   }
 });
 
+// ==========================================
+// PANTAU PESERTA REAL-TIME
+// ==========================================
+const participantsCountBadge = document.getElementById('participants-count');
+const participantsListEl = document.getElementById('participants-list');
+let unsubscribeParticipants = null;
+
+function listenToParticipants(sessionId) {
+  if (unsubscribeParticipants) unsubscribeParticipants(); // hentikan listener sesi sebelumnya (kalau ada)
+
+  const participantsRef = collection(db, 'game_sessions', sessionId, 'participants');
+  const q = query(participantsRef, orderBy('score', 'desc'));
+
+  unsubscribeParticipants = onSnapshot(q, (snapshot) => {
+    participantsCountBadge.textContent = snapshot.size;
+    participantsListEl.innerHTML = '';
+
+    if (snapshot.empty) {
+      participantsListEl.innerHTML = '<p class="participants-empty">Menunggu siswa join...</p>';
+      return;
+    }
+
+    snapshot.forEach((docSnap) => {
+      const p = docSnap.data();
+      const isFinished = p.status === 'finished';
+      const progress = p.totalQuestions ? `${p.currentIndex || 0}/${p.totalQuestions} soal` : '';
+
+      const row = document.createElement('div');
+      row.className = 'participant-row';
+      row.innerHTML = `
+        <span class="p-name">${escapeHtml(p.name || 'Anonim')}</span>
+        <span class="p-progress">${progress}</span>
+        <span class="p-score">${p.score || 0}</span>
+        <span class="p-status-badge ${isFinished ? 'finished' : 'playing'}">${isFinished ? '✅ Selesai' : '⏳ Main'}</span>
+      `;
+      participantsListEl.appendChild(row);
+    });
+  });
+}
+
 btnCopyCode.addEventListener('click', () => {
   navigator.clipboard.writeText(codeDisplay.textContent).then(() => {
     btnCopyCode.textContent = '✅ Tersalin!';
@@ -479,6 +522,10 @@ btnCopyCode.addEventListener('click', () => {
 });
 
 btnBackToSetup.addEventListener('click', () => {
+  if (unsubscribeParticipants) {
+    unsubscribeParticipants();
+    unsubscribeParticipants = null;
+  }
   viewCode.classList.add('hidden');
   viewSetup.classList.remove('hidden');
 });
