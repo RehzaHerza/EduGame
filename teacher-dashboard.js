@@ -3,7 +3,8 @@ import {
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  collection, addDoc, getDocs, query, where, limit, serverTimestamp
+  collection, addDoc, getDocs, query, where, limit, serverTimestamp,
+  doc, updateDoc, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const teacherEmailLabel = document.getElementById('teacher-email-label');
@@ -19,6 +20,10 @@ const btnAddSubject = document.getElementById('btn-add-subject');
 const btnCreateGame = document.getElementById('btn-create-game');
 const btnCreateLabel = document.getElementById('btn-create-label');
 const setupError = document.getElementById('setup-error');
+
+const questionCountLabel = document.getElementById('question-count');
+const btnToggleAddQuestion = document.getElementById('btn-toggle-add-question');
+const formAddQuestion = document.getElementById('form-add-question');
 
 const codeDisplay = document.getElementById('code-display');
 const codeSubjectLabel = document.getElementById('code-subject-label');
@@ -57,6 +62,7 @@ async function loadSubjects() {
   selectSubject.innerHTML = '';
   if (subjectsCache.length === 0) {
     selectSubject.innerHTML = '<option value="">Belum ada mapel — tambahkan dulu di bawah</option>';
+    updateQuestionCount();
     return;
   }
   subjectsCache.forEach((s) => {
@@ -65,7 +71,56 @@ async function loadSubjects() {
     opt.textContent = s.name;
     selectSubject.appendChild(opt);
   });
+  updateQuestionCount();
 }
+
+function updateQuestionCount() {
+  const subject = subjectsCache.find(s => s.id === selectSubject.value);
+  const count = subject && Array.isArray(subject.questions) ? subject.questions.length : 0;
+  questionCountLabel.textContent = count;
+}
+
+selectSubject.addEventListener('change', updateQuestionCount);
+
+btnToggleAddQuestion.addEventListener('click', () => {
+  formAddQuestion.classList.toggle('hidden');
+});
+
+formAddQuestion.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const subjectId = selectSubject.value;
+  if (!subjectId) {
+    setupError.textContent = 'Pilih mata pelajaran dulu sebelum menambah soal.';
+    return;
+  }
+
+  const newQuestion = {
+    type: 'pilgan',
+    question: document.getElementById('q-text').value.trim(),
+    options: [
+      document.getElementById('q-opt-0').value.trim(),
+      document.getElementById('q-opt-1').value.trim(),
+      document.getElementById('q-opt-2').value.trim(),
+      document.getElementById('q-opt-3').value.trim()
+    ],
+    answer: parseInt(document.getElementById('q-correct').value, 10)
+  };
+
+  try {
+    await updateDoc(doc(db, 'subjects', subjectId), {
+      questions: arrayUnion(newQuestion)
+    });
+    formAddQuestion.reset();
+    formAddQuestion.classList.add('hidden');
+    await loadSubjects();
+    selectSubject.value = subjectId;
+    updateQuestionCount();
+  } catch (err) {
+    console.error(err);
+    setupError.textContent = 'Gagal menyimpan soal. Coba lagi.';
+  }
+});
 
 btnAddSubject.addEventListener('click', async () => {
   const name = inputNewSubject.value.trim();
@@ -128,6 +183,12 @@ btnCreateGame.addEventListener('click', async () => {
 
   const mode = document.querySelector('input[name="game-mode"]:checked').value;
   const subject = subjectsCache.find(s => s.id === subjectId);
+
+  const questionCount = subject && Array.isArray(subject.questions) ? subject.questions.length : 0;
+  if (questionCount === 0) {
+    setupError.textContent = 'Tambahkan minimal 1 soal dulu sebelum membuat kode game.';
+    return;
+  }
 
   btnCreateGame.disabled = true;
   btnCreateLabel.textContent = 'Membuat kode...';

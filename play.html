@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bermain - EduGame</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="join.css">
+<link rel="stylesheet" href="teacher-login.css">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div class="brand-text">
+        <h1>Edu<span>Game</span></h1>
+        <p id="subject-label">Memuat...</p>
+      </div>
+    </div>
+    <div class="score-badge" id="score-badge">⭐ 0</div>
+  </div>
+
+  <!-- ================= STEP 1: ISI NAMA ================= -->
+  <div id="view-name" class="dash-wrap">
+    <div class="main-card login-card">
+      <div class="join-title">
+        <span>✍️</span>
+        <h3>Siapa Nama Kamu?</h3>
+      </div>
+      <p class="join-desc">Nama ini akan muncul di leaderboard.</p>
+
+      <form id="form-name" class="login-form">
+        <div class="form-field">
+          <input type="text" id="input-player-name" placeholder="Tulis nama kamu..." maxlength="30" required>
+        </div>
+        <button type="submit" class="btn-join btn-full">
+          <span>Mulai Main →</span>
+        </button>
+      </form>
+      <p class="join-error" id="name-error"></p>
+    </div>
+  </div>
+
+  <!-- ================= STEP 2: LOADING ================= -->
+  <div id="view-loading" class="dash-wrap hidden">
+    <p class="loading-text">⏳ Memuat soal...</p>
+  </div>
+
+  <!-- ================= STEP 3: SOAL KOSONG ================= -->
+  <div id="view-empty" class="dash-wrap hidden">
+    <div class="main-card">
+      <p class="join-desc">😅 Guru belum menambahkan soal untuk mapel ini. Coba lagi nanti.</p>
+    </div>
+  </div>
+
+  <!-- ================= STEP 4: BERMAIN ================= -->
+  <div id="view-play" class="dash-wrap hidden">
+    <div class="main-card play-card">
+      <div class="play-progress">
+        <span id="play-progress-label">Soal 1 dari 5</span>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <h2 class="play-question" id="play-question">Pertanyaan...</h2>
+
+      <div class="play-options" id="play-options"></div>
+
+      <div class="play-explanation hidden" id="play-explanation"></div>
+
+      <button type="button" class="btn-join btn-full hidden" id="btn-next-question">
+        <span>Soal Selanjutnya →</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= STEP 5: HASIL ================= -->
+  <div id="view-result" class="dash-wrap hidden">
+    <div class="main-card result-card-play">
+      <div class="result-icon" id="result-icon">🏆</div>
+      <h2>Selesai!</h2>
+      <p class="join-desc">Skor akhir kamu:</p>
+      <div class="final-score" id="final-score">0</div>
+      <p class="final-detail" id="final-detail"></p>
+    </div>
+  </div>
+
+  <footer>© 2026 EduGame · Belajar jadi menyenangkan! 💙</footer>
+
+  <script type="module" src="play.js"></script>
+</body>
+</html>

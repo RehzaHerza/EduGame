@@ -43,6 +43,29 @@
         <button type="button" class="btn-secondary-sm" id="btn-add-subject">➕ Tambah</button>
       </div>
 
+      <!-- Kelola Soal Mapel Terpilih -->
+      <div class="question-panel">
+        <div class="question-panel-header">
+          <span>📝 Soal Mapel Ini (<span id="question-count">0</span>)</span>
+          <button type="button" class="btn-secondary-sm" id="btn-toggle-add-question">➕ Tambah Soal</button>
+        </div>
+
+        <form id="form-add-question" class="add-question-form hidden">
+          <input type="text" id="q-text" placeholder="Tulis pertanyaan..." required>
+          <input type="text" id="q-opt-0" placeholder="Opsi A" required>
+          <input type="text" id="q-opt-1" placeholder="Opsi B" required>
+          <input type="text" id="q-opt-2" placeholder="Opsi C" required>
+          <input type="text" id="q-opt-3" placeholder="Opsi D" required>
+          <select id="q-correct">
+            <option value="0">Jawaban Benar: Opsi A</option>
+            <option value="1">Jawaban Benar: Opsi B</option>
+            <option value="2">Jawaban Benar: Opsi C</option>
+            <option value="3">Jawaban Benar: Opsi D</option>
+          </select>
+          <button type="submit" class="btn-secondary-sm">💾 Simpan Soal</button>
+        </form>
+      </div>
+
       <!-- Pilih Mode -->
       <div class="form-field mode-field">
         <label>Mode Permainan</label>
@@ -60,6 +83,7 @@
             <span class="mode-desc">Siswa kerjakan sendiri-sendiri dengan kecepatan masing-masing.</span>
           </label>
         </div>
+        <p class="mode-note">💡 Untuk saat ini, mode <strong>Mandiri</strong> yang sudah bisa dimainkan penuh. Mode Live masih tahap pengembangan.</p>
       </div>
 
       <button type="button" class="btn-join btn-full" id="btn-create-game">
