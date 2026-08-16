@@ -13,6 +13,50 @@
   max-width: 560px;
 }
 
+/* Layout lebar khusus desktop: 2 kolom berdampingan */
+.dash-wrap-wide {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.setup-grid,
+.code-grid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.setup-col-left .main-card,
+.setup-col-right .main-card,
+.code-col-left .main-card,
+.code-col-right .main-card {
+  max-width: none;
+  width: 100%;
+}
+
+.code-col-left { position: sticky; top: 20px; }
+
+.ai-generate-row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 12px;
+}
+
+.q-opt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .setup-grid,
+  .code-grid {
+    grid-template-columns: 1fr;
+  }
+  .code-col-left { position: static; }
+}
+
 .dash-wrap .form-field {
   margin-bottom: 14px;
 }
@@ -430,4 +474,6 @@
   .mode-options { grid-template-columns: 1fr; }
   .code-display { font-size: 2.2rem; letter-spacing: 5px; padding: 18px; }
   .new-subject-row { flex-direction: column; }
+  .ai-generate-row { grid-template-columns: 1fr; }
+  .q-opt-grid { grid-template-columns: 1fr; }
 }

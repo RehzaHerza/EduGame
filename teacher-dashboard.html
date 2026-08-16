@@ -27,166 +27,192 @@
   </div>
 
   <!-- ================= VIEW: SETUP GAME ================= -->
-  <div id="view-setup" class="dash-wrap">
-    <div class="main-card">
-      <div class="join-title">
-        <span>🕹️</span>
-        <h3>Buat Game Baru</h3>
-      </div>
-      <p class="join-desc">Pilih mapel dan mode, lalu buat kode game untuk dibagikan ke siswa.</p>
+  <div id="view-setup" class="dash-wrap dash-wrap-wide">
+    <div class="setup-grid">
 
-      <!-- Pilih / Buat Mapel -->
-      <div class="form-field">
-        <label for="select-subject">Mata Pelajaran</label>
-        <div class="subject-select-row">
-          <select id="select-subject"></select>
-          <button type="button" class="btn-delete-subject" id="btn-delete-subject" title="Hapus mapel ini beserta semua soalnya">🗑️</button>
-        </div>
-      </div>
-
-      <div class="new-subject-row">
-        <input type="text" id="input-new-subject" placeholder="Atau ketik nama mapel baru...">
-        <button type="button" class="btn-secondary-sm" id="btn-add-subject">➕ Tambah</button>
-      </div>
-
-      <!-- Kelola Soal Mapel Terpilih -->
-      <div class="question-panel">
-        <div class="question-panel-header">
-          <div class="question-count-visual">
-            <span class="question-count-number" id="question-count">0</span>
-            <span class="question-count-text">Soal Tersimpan</span>
+      <!-- Kolom Kiri: Buat Game -->
+      <div class="setup-col-left">
+        <div class="main-card">
+          <div class="join-title">
+            <span>🕹️</span>
+            <h3>Buat Game Baru</h3>
           </div>
-          <div class="question-panel-buttons">
-            <button type="button" class="btn-secondary-sm" id="btn-toggle-ai-generate">✨ Generate AI</button>
-            <button type="button" class="btn-secondary-sm" id="btn-toggle-add-question">➕ Tambah Manual</button>
-          </div>
-        </div>
+          <p class="join-desc">Pilih mapel dan mode, lalu buat kode game untuk dibagikan ke siswa.</p>
 
-        <div id="question-list" class="question-list"></div>
-
-        <!-- Panel Generate Soal AI (Gemini) -->
-        <div id="ai-generate-panel" class="ai-generate-panel hidden">
+          <!-- Pilih / Buat Mapel -->
           <div class="form-field">
-            <label for="input-api-key">🔑 Google Gemini API Key</label>
-            <input type="password" id="input-api-key" placeholder="AIzaSy...">
-            <p class="input-help-sm">Disimpan di browser kamu saja (localStorage), tidak dikirim ke server EduGame.</p>
+            <label for="select-subject">Mata Pelajaran</label>
+            <div class="subject-select-row">
+              <select id="select-subject"></select>
+              <button type="button" class="btn-delete-subject" id="btn-delete-subject" title="Hapus mapel ini beserta semua soalnya">🗑️</button>
+            </div>
           </div>
 
-          <div class="form-field">
-            <label for="input-file-material">📎 Unggah Dokumen Materi (PDF, DOCX, XLSX, TXT)</label>
-            <input type="file" id="input-file-material" accept=".pdf,.docx,.xlsx,.xls,.txt">
+          <div class="new-subject-row">
+            <input type="text" id="input-new-subject" placeholder="Atau ketik nama mapel baru...">
+            <button type="button" class="btn-secondary-sm" id="btn-add-subject">➕ Tambah</button>
           </div>
 
-          <div class="form-field">
-            <label for="input-material-text">✍️ Atau Tempel Teks Materi</label>
-            <textarea id="input-material-text" rows="4" placeholder="Ketik/tempel materi di sini..."></textarea>
+          <!-- Pilih Mode -->
+          <div class="form-field mode-field">
+            <label>Mode Permainan</label>
+            <div class="mode-options">
+              <label class="mode-card">
+                <input type="radio" name="game-mode" value="live">
+                <span class="mode-icon">🟢</span>
+                <span class="mode-title">Live Bareng</span>
+                <span class="mode-desc">Semua siswa jawab soal yang sama serentak, guru pegang kendali.</span>
+              </label>
+              <label class="mode-card">
+                <input type="radio" name="game-mode" value="mandiri">
+                <span class="mode-icon">🚀</span>
+                <span class="mode-title">Mandiri</span>
+                <span class="mode-desc">Siswa kerjakan sendiri-sendiri dengan kecepatan masing-masing.</span>
+              </label>
+            </div>
           </div>
 
-          <div class="form-field">
-            <label for="input-ai-count">Jumlah Soal Pilgan</label>
-            <input type="number" id="input-ai-count" value="5" min="1" max="20">
-          </div>
-
-          <button type="button" class="btn-join btn-full" id="btn-generate-ai">
-            <span id="btn-generate-ai-label">✨ Generate Soal AI</span>
+          <button type="button" class="btn-join btn-full" id="btn-create-game">
+            <span id="btn-create-label">🎲 Buat Kode Game</span>
           </button>
-          <p class="join-error" id="ai-status"></p>
+          <p class="join-error" id="setup-error"></p>
         </div>
-
-        <form id="form-add-question" class="add-question-form hidden">
-          <input type="text" id="q-text" placeholder="Tulis pertanyaan..." required>
-          <input type="text" id="q-opt-0" placeholder="Opsi A" required>
-          <input type="text" id="q-opt-1" placeholder="Opsi B" required>
-          <input type="text" id="q-opt-2" placeholder="Opsi C" required>
-          <input type="text" id="q-opt-3" placeholder="Opsi D" required>
-          <select id="q-correct">
-            <option value="0">Jawaban Benar: Opsi A</option>
-            <option value="1">Jawaban Benar: Opsi B</option>
-            <option value="2">Jawaban Benar: Opsi C</option>
-            <option value="3">Jawaban Benar: Opsi D</option>
-          </select>
-          <button type="submit" class="btn-secondary-sm" id="btn-save-question">💾 Simpan Soal</button>
-        </form>
       </div>
 
-      <!-- Pilih Mode -->
-      <div class="form-field mode-field">
-        <label>Mode Permainan</label>
-        <div class="mode-options">
-          <label class="mode-card">
-            <input type="radio" name="game-mode" value="live">
-            <span class="mode-icon">🟢</span>
-            <span class="mode-title">Live Bareng</span>
-            <span class="mode-desc">Semua siswa jawab soal yang sama serentak, guru pegang kendali.</span>
-          </label>
-          <label class="mode-card">
-            <input type="radio" name="game-mode" value="mandiri">
-            <span class="mode-icon">🚀</span>
-            <span class="mode-title">Mandiri</span>
-            <span class="mode-desc">Siswa kerjakan sendiri-sendiri dengan kecepatan masing-masing.</span>
-          </label>
+      <!-- Kolom Kanan: Kelola Bank Soal -->
+      <div class="setup-col-right">
+        <div class="main-card">
+          <!-- Kelola Soal Mapel Terpilih -->
+          <div class="question-panel">
+            <div class="question-panel-header">
+              <div class="question-count-visual">
+                <span class="question-count-number" id="question-count">0</span>
+                <span class="question-count-text">Soal Tersimpan</span>
+              </div>
+              <div class="question-panel-buttons">
+                <button type="button" class="btn-secondary-sm" id="btn-toggle-ai-generate">✨ Generate AI</button>
+                <button type="button" class="btn-secondary-sm" id="btn-toggle-add-question">➕ Tambah Manual</button>
+              </div>
+            </div>
+
+            <div id="question-list" class="question-list"></div>
+
+            <!-- Panel Generate Soal AI (Gemini) -->
+            <div id="ai-generate-panel" class="ai-generate-panel hidden">
+              <div class="form-field">
+                <label for="input-api-key">🔑 Google Gemini API Key</label>
+                <input type="password" id="input-api-key" placeholder="AIzaSy...">
+                <p class="input-help-sm">Disimpan di browser kamu saja (localStorage), tidak dikirim ke server EduGame.</p>
+              </div>
+
+              <div class="ai-generate-row">
+                <div class="form-field">
+                  <label for="input-file-material">📎 Unggah Dokumen Materi</label>
+                  <input type="file" id="input-file-material" accept=".pdf,.docx,.xlsx,.xls,.txt">
+                </div>
+                <div class="form-field">
+                  <label for="input-ai-count">Jumlah Soal Pilgan</label>
+                  <input type="number" id="input-ai-count" value="5" min="1" max="20">
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="input-material-text">✍️ Atau Tempel Teks Materi</label>
+                <textarea id="input-material-text" rows="3" placeholder="Ketik/tempel materi di sini..."></textarea>
+              </div>
+
+              <button type="button" class="btn-join btn-full" id="btn-generate-ai">
+                <span id="btn-generate-ai-label">✨ Generate Soal AI</span>
+              </button>
+              <p class="join-error" id="ai-status"></p>
+            </div>
+
+            <form id="form-add-question" class="add-question-form hidden">
+              <input type="text" id="q-text" placeholder="Tulis pertanyaan..." required>
+              <div class="q-opt-grid">
+                <input type="text" id="q-opt-0" placeholder="Opsi A" required>
+                <input type="text" id="q-opt-1" placeholder="Opsi B" required>
+                <input type="text" id="q-opt-2" placeholder="Opsi C" required>
+                <input type="text" id="q-opt-3" placeholder="Opsi D" required>
+              </div>
+              <select id="q-correct">
+                <option value="0">Jawaban Benar: Opsi A</option>
+                <option value="1">Jawaban Benar: Opsi B</option>
+                <option value="2">Jawaban Benar: Opsi C</option>
+                <option value="3">Jawaban Benar: Opsi D</option>
+              </select>
+              <button type="submit" class="btn-secondary-sm" id="btn-save-question">💾 Simpan Soal</button>
+            </form>
+          </div>
         </div>
-        <p class="mode-note">💡 Untuk saat ini, mode <strong>Mandiri</strong> yang sudah bisa dimainkan penuh. Mode Live masih tahap pengembangan.</p>
       </div>
 
-      <button type="button" class="btn-join btn-full" id="btn-create-game">
-        <span id="btn-create-label">🎲 Buat Kode Game</span>
-      </button>
-      <p class="join-error" id="setup-error"></p>
     </div>
   </div>
 
   <!-- ================= VIEW: KODE GAME SIAP ================= -->
-  <div id="view-code" class="dash-wrap hidden">
-    <div class="main-card code-card">
-      <div class="join-title">
-        <span>✅</span>
-        <h3>Game Siap!</h3>
-      </div>
-      <p class="join-desc">Bagikan kode ini ke siswa kamu.</p>
+  <div id="view-code" class="dash-wrap dash-wrap-wide hidden">
+    <div class="code-grid">
 
-      <div class="code-display" id="code-display">------</div>
-      <button type="button" class="btn-secondary-sm" id="btn-copy-code">📋 Salin Kode</button>
+      <!-- Kolom Kiri: Kode & Peserta -->
+      <div class="code-col-left">
+        <div class="main-card code-card">
+          <div class="join-title">
+            <span>✅</span>
+            <h3>Game Siap!</h3>
+          </div>
+          <p class="join-desc">Bagikan kode ini ke siswa kamu.</p>
 
-      <div class="code-meta">
-        <span id="code-subject-label"></span> · <span id="code-mode-label"></span>
-      </div>
+          <div class="code-display" id="code-display">------</div>
+          <button type="button" class="btn-secondary-sm" id="btn-copy-code">📋 Salin Kode</button>
 
-      <!-- Panel Peserta Real-time -->
-      <div class="participants-panel">
-        <div class="participants-header">
-          <span>👥 Peserta Bergabung</span>
-          <span class="participants-count-badge" id="participants-count">0</span>
+          <div class="code-meta">
+            <span id="code-subject-label"></span> · <span id="code-mode-label"></span>
+          </div>
+
+          <button type="button" class="btn-join btn-full" id="btn-back-to-setup">
+            ⬅️ Buat Game Baru Lain
+          </button>
         </div>
-        <div id="participants-list" class="participants-list">
-          <p class="participants-empty">Menunggu siswa join...</p>
+      </div>
+
+      <!-- Kolom Kanan: Peserta + Kontrol Live -->
+      <div class="code-col-right">
+        <div class="main-card">
+          <!-- Panel Peserta Real-time -->
+          <div class="participants-panel">
+            <div class="participants-header">
+              <span>👥 Peserta Bergabung</span>
+              <span class="participants-count-badge" id="participants-count">0</span>
+            </div>
+            <div id="participants-list" class="participants-list">
+              <p class="participants-empty">Menunggu siswa join...</p>
+            </div>
+          </div>
+
+          <!-- Panel Kontrol Live (cuma tampil kalau mode = Live Bareng) -->
+          <div id="live-control-panel" class="live-control-panel hidden">
+            <div class="live-control-status" id="live-control-status">Belum dimulai</div>
+
+            <div id="live-question-preview" class="live-question-preview hidden">
+              <span class="live-question-num" id="live-question-num">Soal 1 dari 5</span>
+              <p class="live-question-text" id="live-question-text"></p>
+              <div class="live-answered-count" id="live-answered-count">0 dari 0 siswa sudah jawab</div>
+            </div>
+
+            <button type="button" class="btn-join btn-full" id="btn-start-live">
+              ▶️ Mulai Game Sekarang
+            </button>
+            <button type="button" class="btn-join btn-full hidden" id="btn-next-live">
+              ⏭️ Soal Berikutnya
+            </button>
+            <button type="button" class="btn-secondary-sm btn-end-live hidden" id="btn-end-live">
+              🛑 Akhiri Game
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Panel Kontrol Live (cuma tampil kalau mode = Live Bareng) -->
-      <div id="live-control-panel" class="live-control-panel hidden">
-        <div class="live-control-status" id="live-control-status">Belum dimulai</div>
-
-        <div id="live-question-preview" class="live-question-preview hidden">
-          <span class="live-question-num" id="live-question-num">Soal 1 dari 5</span>
-          <p class="live-question-text" id="live-question-text"></p>
-          <div class="live-answered-count" id="live-answered-count">0 dari 0 siswa sudah jawab</div>
-        </div>
-
-        <button type="button" class="btn-join btn-full" id="btn-start-live">
-          ▶️ Mulai Game Sekarang
-        </button>
-        <button type="button" class="btn-join btn-full hidden" id="btn-next-live">
-          ⏭️ Soal Berikutnya
-        </button>
-        <button type="button" class="btn-secondary-sm btn-end-live hidden" id="btn-end-live">
-          🛑 Akhiri Game
-        </button>
-      </div>
-
-      <button type="button" class="btn-join btn-full" id="btn-back-to-setup">
-        ⬅️ Buat Game Baru Lain
-      </button>
     </div>
   </div>
 
