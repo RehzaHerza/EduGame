@@ -4,7 +4,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   collection, addDoc, getDocs, query, where, limit, serverTimestamp,
-  doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, orderBy
+  doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, orderBy, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const teacherEmailLabel = document.getElementById('teacher-email-label');
@@ -91,8 +91,43 @@ async function loadSubjects() {
     opt.textContent = s.name;
     selectSubject.appendChild(opt);
   });
+
+  // Ingat mapel terakhir yang dipilih guru, jangan selalu balik ke yang pertama
+  const lastSubjectId = localStorage.getItem('edugame_last_subject_id');
+  const stillExists = subjectsCache.some(s => s.id === lastSubjectId);
+  if (lastSubjectId && stillExists) {
+    selectSubject.value = lastSubjectId;
+  }
+
   updateQuestionCount();
 }
+
+selectSubject.addEventListener('change', () => {
+  localStorage.setItem('edugame_last_subject_id', selectSubject.value);
+});
+
+const btnDeleteSubject = document.getElementById('btn-delete-subject');
+
+btnDeleteSubject.addEventListener('click', async () => {
+  const subjectId = selectSubject.value;
+  const subject = subjectsCache.find(s => s.id === subjectId);
+  if (!subject) return;
+
+  const questionCount = Array.isArray(subject.questions) ? subject.questions.length : 0;
+  const confirmMsg = `Yakin hapus mapel "${subject.name}"? Ini akan menghapus mapel beserta ${questionCount} soal di dalamnya. Tindakan ini tidak bisa dibatalkan.`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    await deleteDoc(doc(db, 'subjects', subjectId));
+    if (localStorage.getItem('edugame_last_subject_id') === subjectId) {
+      localStorage.removeItem('edugame_last_subject_id');
+    }
+    await loadSubjects();
+  } catch (err) {
+    console.error(err);
+    setupError.textContent = 'Gagal menghapus mapel. Coba lagi.';
+  }
+});
 
 function updateQuestionCount() {
   const subject = subjectsCache.find(s => s.id === selectSubject.value);
