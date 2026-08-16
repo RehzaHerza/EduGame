@@ -377,6 +377,55 @@
 .participant-row .p-status-badge.playing { background: #fef3c7; color: #92400e; }
 .participant-row .p-status-badge.finished { background: #dcfce7; color: #15803d; }
 
+/* Live Control Panel (guru) */
+.live-control-panel {
+  border: 2px solid var(--blue);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 22px;
+  text-align: center;
+  background: #f8faff;
+}
+
+.live-control-status {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+  margin-bottom: 12px;
+}
+
+.live-question-preview {
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.live-question-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.live-question-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 6px 0;
+}
+
+.live-answered-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.btn-end-live {
+  width: 100%;
+  margin-top: 8px;
+  background: #fef2f2;
+  color: #ef4444;
+}
+
 @media (max-width: 640px) {
   .mode-options { grid-template-columns: 1fr; }
   .code-display { font-size: 2.2rem; letter-spacing: 5px; padding: 18px; }

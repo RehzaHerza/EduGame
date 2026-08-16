@@ -163,6 +163,27 @@
         </div>
       </div>
 
+      <!-- Panel Kontrol Live (cuma tampil kalau mode = Live Bareng) -->
+      <div id="live-control-panel" class="live-control-panel hidden">
+        <div class="live-control-status" id="live-control-status">Belum dimulai</div>
+
+        <div id="live-question-preview" class="live-question-preview hidden">
+          <span class="live-question-num" id="live-question-num">Soal 1 dari 5</span>
+          <p class="live-question-text" id="live-question-text"></p>
+          <div class="live-answered-count" id="live-answered-count">0 dari 0 siswa sudah jawab</div>
+        </div>
+
+        <button type="button" class="btn-join btn-full" id="btn-start-live">
+          ▶️ Mulai Game Sekarang
+        </button>
+        <button type="button" class="btn-join btn-full hidden" id="btn-next-live">
+          ⏭️ Soal Berikutnya
+        </button>
+        <button type="button" class="btn-secondary-sm btn-end-live hidden" id="btn-end-live">
+          🛑 Akhiri Game
+        </button>
+      </div>
+
       <button type="button" class="btn-join btn-full" id="btn-back-to-setup">
         ⬅️ Buat Game Baru Lain
       </button>

@@ -13,6 +13,7 @@ const scoreBadge = document.getElementById('score-badge');
 const viewName = document.getElementById('view-name');
 const viewLoading = document.getElementById('view-loading');
 const viewEmpty = document.getElementById('view-empty');
+const viewWaiting = document.getElementById('view-waiting');
 const viewPlay = document.getElementById('view-play');
 const viewResult = document.getElementById('view-result');
 
@@ -26,6 +27,7 @@ const playQuestion = document.getElementById('play-question');
 const playOptions = document.getElementById('play-options');
 const playExplanation = document.getElementById('play-explanation');
 const btnNextQuestion = document.getElementById('btn-next-question');
+const liveWaitingNext = document.getElementById('live-waiting-next');
 
 const finalScore = document.getElementById('final-score');
 const finalDetail = document.getElementById('final-detail');
@@ -39,9 +41,10 @@ let score = 0;
 let correctCount = 0;
 let playerName = '';
 let answeredCurrent = false;
+let unsubscribeSessionListener = null; // dipakai khusus mode Live
 
 function showView(view) {
-  [viewName, viewLoading, viewEmpty, viewPlay, viewResult].forEach(v => v.classList.add('hidden'));
+  [viewName, viewLoading, viewEmpty, viewWaiting, viewPlay, viewResult].forEach(v => v.classList.add('hidden'));
   view.classList.remove('hidden');
 }
 
@@ -119,31 +122,64 @@ async function loadSessionAndQuestions() {
     name: playerName,
     score: 0,
     correctCount: 0,
+    currentIndex: 0,
     totalQuestions: questions.length,
     status: 'playing',
     joinedAt: serverTimestamp()
   });
 
-  currentIndex = 0;
   score = 0;
   correctCount = 0;
-  renderQuestion();
-  showView(viewPlay);
+
+  if (sessionData.mode === 'live') {
+    startLiveFlow();
+  } else {
+    currentIndex = 0;
+    renderQuestion(0);
+    showView(viewPlay);
+  }
+}
+
+// ==========================================
+// ALUR MODE LIVE BARENG — ikuti kontrol guru real-time
+// ==========================================
+function startLiveFlow() {
+  const sessionRef = doc(db, 'game_sessions', sessionId);
+
+  unsubscribeSessionListener = onSnapshot(sessionRef, (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+
+    if (data.status === 'waiting') {
+      showView(viewWaiting);
+    } else if (data.status === 'active') {
+      const newIndex = data.activeQuestionIndex || 0;
+      if (newIndex !== currentIndex || viewPlay.classList.contains('hidden')) {
+        currentIndex = newIndex;
+        renderQuestion(currentIndex);
+        showView(viewPlay);
+      }
+    } else if (data.status === 'finished') {
+      if (unsubscribeSessionListener) unsubscribeSessionListener();
+      finishGame();
+    }
+  });
 }
 
 // ==========================================
 // TAMPILKAN SOAL
 // ==========================================
-function renderQuestion() {
+function renderQuestion(index) {
   answeredCurrent = false;
-  const q = questions[currentIndex];
+  const q = questions[index];
 
-  playProgressLabel.textContent = `Soal ${currentIndex + 1} dari ${questions.length}`;
-  progressFill.style.width = `${Math.round(((currentIndex + 1) / questions.length) * 100)}%`;
+  playProgressLabel.textContent = `Soal ${index + 1} dari ${questions.length}`;
+  progressFill.style.width = `${Math.round(((index + 1) / questions.length) * 100)}%`;
   playQuestion.textContent = q.question;
 
   playExplanation.classList.add('hidden');
   btnNextQuestion.classList.add('hidden');
+  liveWaitingNext.classList.add('hidden');
 
   playOptions.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
@@ -185,9 +221,14 @@ async function handleAnswer(selectedIndex) {
     playExplanation.classList.remove('hidden');
   }
 
-  btnNextQuestion.classList.remove('hidden');
+  const isLive = sessionData && sessionData.mode === 'live';
+  if (isLive) {
+    liveWaitingNext.classList.remove('hidden'); // menunggu guru yang lanjutkan, bukan tombol sendiri
+  } else {
+    btnNextQuestion.classList.remove('hidden');
+  }
 
-  // Simpan progres ke Firestore setiap jawab (biar leaderboard bisa real-time nanti)
+  // Simpan progres ke Firestore setiap jawab (biar leaderboard & panel guru bisa real-time)
   try {
     await setDoc(doc(db, 'game_sessions', sessionId, 'participants', myUid), {
       score: score,
@@ -200,9 +241,10 @@ async function handleAnswer(selectedIndex) {
 }
 
 btnNextQuestion.addEventListener('click', () => {
+  // Tombol ini cuma dipakai mode Mandiri (mode Live otomatis pindah lewat listener sesi)
   if (currentIndex < questions.length - 1) {
     currentIndex += 1;
-    renderQuestion();
+    renderQuestion(currentIndex);
   } else {
     finishGame();
   }
@@ -254,6 +296,11 @@ function escapeHtml(str) {
 // SELESAI
 // ==========================================
 async function finishGame() {
+  if (unsubscribeSessionListener) {
+    unsubscribeSessionListener();
+    unsubscribeSessionListener = null;
+  }
+
   const accuracy = Math.round((correctCount / questions.length) * 100);
 
   finalScore.textContent = score;

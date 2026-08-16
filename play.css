@@ -141,3 +141,25 @@
 .lb-name { flex: 1; font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-score { font-weight: 800; color: var(--blue-dark); font-size: 0.9rem; }
 .lb-status { font-size: 0.7rem; color: var(--text-muted); }
+
+
+/* Ruang Tunggu (Live Bareng) */
+.waiting-card { text-align: center; }
+
+.waiting-spinner {
+  font-size: 3rem;
+  animation: waitingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes waitingPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+.live-waiting-next {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 8px;
+}

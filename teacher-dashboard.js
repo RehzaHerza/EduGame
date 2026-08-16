@@ -3,7 +3,7 @@ import {
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  collection, addDoc, getDocs, query, where, limit, serverTimestamp,
+  collection, addDoc, getDocs, getDoc, query, where, limit, serverTimestamp,
   doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, orderBy, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -65,6 +65,7 @@ function restoreActiveGameIfAny() {
   viewCode.classList.remove('hidden');
 
   listenToParticipants(savedSessionId);
+  setupLiveControlPanel(savedSessionId, savedMode);
 }
 
 btnLogout.addEventListener('click', async () => {
@@ -523,6 +524,7 @@ btnCreateGame.addEventListener('click', async () => {
     viewCode.classList.remove('hidden');
 
     listenToParticipants(sessionRef.id);
+    setupLiveControlPanel(sessionRef.id, mode);
 
   } catch (err) {
     console.error(err);
@@ -539,6 +541,109 @@ btnCreateGame.addEventListener('click', async () => {
 const participantsCountBadge = document.getElementById('participants-count');
 const participantsListEl = document.getElementById('participants-list');
 let unsubscribeParticipants = null;
+
+// ==========================================
+// KONTROL LIVE BARENG (guru)
+// ==========================================
+const liveControlPanel = document.getElementById('live-control-panel');
+const liveControlStatus = document.getElementById('live-control-status');
+const liveQuestionPreview = document.getElementById('live-question-preview');
+const liveQuestionNum = document.getElementById('live-question-num');
+const liveQuestionText = document.getElementById('live-question-text');
+const liveAnsweredCount = document.getElementById('live-answered-count');
+const btnStartLive = document.getElementById('btn-start-live');
+const btnNextLive = document.getElementById('btn-next-live');
+const btnEndLive = document.getElementById('btn-end-live');
+
+let liveQuestions = [];
+let unsubscribeLiveParticipants = null;
+
+async function setupLiveControlPanel(sessionId, mode) {
+  if (mode !== 'live') {
+    liveControlPanel.classList.add('hidden');
+    return;
+  }
+  liveControlPanel.classList.remove('hidden');
+
+  const sessionSnap = await getDoc(doc(db, 'game_sessions', sessionId));
+  const sessionData = sessionSnap.data();
+  const subjectSnap = await getDoc(doc(db, 'subjects', sessionData.subjectId));
+  liveQuestions = (subjectSnap.exists() && Array.isArray(subjectSnap.data().questions)) ? subjectSnap.data().questions : [];
+
+  renderLiveControlState(sessionData.status, sessionData.activeQuestionIndex || 0);
+
+  btnStartLive.onclick = async () => {
+    await updateDoc(doc(db, 'game_sessions', sessionId), { status: 'active', activeQuestionIndex: 0 });
+    renderLiveControlState('active', 0);
+    watchAnsweredCount(sessionId, 0);
+  };
+
+  btnNextLive.onclick = async () => {
+    const sessionSnap2 = await getDoc(doc(db, 'game_sessions', sessionId));
+    const nextIndex = (sessionSnap2.data().activeQuestionIndex || 0) + 1;
+
+    if (nextIndex >= liveQuestions.length) {
+      await updateDoc(doc(db, 'game_sessions', sessionId), { status: 'finished' });
+      renderLiveControlState('finished', nextIndex);
+      if (unsubscribeLiveParticipants) unsubscribeLiveParticipants();
+    } else {
+      await updateDoc(doc(db, 'game_sessions', sessionId), { activeQuestionIndex: nextIndex });
+      renderLiveControlState('active', nextIndex);
+      watchAnsweredCount(sessionId, nextIndex);
+    }
+  };
+
+  btnEndLive.onclick = async () => {
+    if (!confirm('Akhiri game sekarang? Siswa yang belum selesai akan langsung melihat hasil akhir.')) return;
+    await updateDoc(doc(db, 'game_sessions', sessionId), { status: 'finished' });
+    renderLiveControlState('finished', 0);
+    if (unsubscribeLiveParticipants) unsubscribeLiveParticipants();
+  };
+
+  if (sessionData.status === 'active') {
+    watchAnsweredCount(sessionId, sessionData.activeQuestionIndex || 0);
+  }
+}
+
+function renderLiveControlState(status, questionIndex) {
+  if (status === 'waiting') {
+    liveControlStatus.textContent = '⚪ Belum dimulai — siswa masih menunggu di ruang tunggu';
+    liveQuestionPreview.classList.add('hidden');
+    btnStartLive.classList.remove('hidden');
+    btnNextLive.classList.add('hidden');
+    btnEndLive.classList.add('hidden');
+  } else if (status === 'active') {
+    const q = liveQuestions[questionIndex];
+    liveControlStatus.textContent = '🟢 Game sedang berjalan';
+    liveQuestionPreview.classList.remove('hidden');
+    liveQuestionNum.textContent = `Soal ${questionIndex + 1} dari ${liveQuestions.length}`;
+    liveQuestionText.textContent = q ? q.question : '';
+    btnStartLive.classList.add('hidden');
+    btnNextLive.classList.remove('hidden');
+    btnNextLive.innerHTML = (questionIndex + 1 >= liveQuestions.length) ? '🏁 Selesaikan Game' : '⏭️ Soal Berikutnya';
+    btnEndLive.classList.remove('hidden');
+  } else if (status === 'finished') {
+    liveControlStatus.textContent = '🏁 Game sudah selesai';
+    liveQuestionPreview.classList.add('hidden');
+    btnStartLive.classList.add('hidden');
+    btnNextLive.classList.add('hidden');
+    btnEndLive.classList.add('hidden');
+  }
+}
+
+function watchAnsweredCount(sessionId, questionIndex) {
+  if (unsubscribeLiveParticipants) unsubscribeLiveParticipants();
+
+  const participantsRef = collection(db, 'game_sessions', sessionId, 'participants');
+  unsubscribeLiveParticipants = onSnapshot(participantsRef, (snapshot) => {
+    let answeredCount = 0;
+    snapshot.forEach((docSnap) => {
+      const p = docSnap.data();
+      if ((p.currentIndex || 0) > questionIndex) answeredCount += 1;
+    });
+    liveAnsweredCount.textContent = `${answeredCount} dari ${snapshot.size} siswa sudah jawab`;
+  });
+}
 
 function listenToParticipants(sessionId) {
   if (unsubscribeParticipants) unsubscribeParticipants(); // hentikan listener sesi sebelumnya (kalau ada)
@@ -584,6 +689,10 @@ btnBackToSetup.addEventListener('click', () => {
   if (unsubscribeParticipants) {
     unsubscribeParticipants();
     unsubscribeParticipants = null;
+  }
+  if (unsubscribeLiveParticipants) {
+    unsubscribeLiveParticipants();
+    unsubscribeLiveParticipants = null;
   }
   sessionStorage.removeItem('edugame_active_session_id');
   sessionStorage.removeItem('edugame_active_code');
