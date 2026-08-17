@@ -149,7 +149,7 @@ function renderQuestionList(subjectId, questions) {
     const item = document.createElement('div');
     item.className = 'question-list-item';
     item.innerHTML = `
-      <span class="q-num">${idx + 1}.</span>
+      <span class="q-num">${idx + 1}</span>
       <span class="q-text">${escapeHtml(q.question)}</span>
       <button type="button" class="btn-delete-q" title="Hapus soal ini">🗑️</button>
     `;
